@@ -1,4 +1,5 @@
 import { bus, GameEvent } from '@/core/EventBus';
+import gasPedalUrl from '@/assets/ui/gas-pedal.webp?url';
 
 /**
  * Phone-first driving controls: a draggable analog **steering wheel** (bottom-left)
@@ -228,19 +229,19 @@ function injectStyle(): void {
        they never dominate a narrow portrait viewport / occlude the car. */
     .dr-pedal-group { display: flex; flex-direction: column; align-items: center; gap: 9px;
       pointer-events: auto; }
-    .dr-pedal { width: clamp(96px, 26vw, 132px); height: clamp(120px, 30vw, 150px);
-      border: none; border-radius: 24px;
-      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-      color: #06210f; font-family: system-ui, sans-serif; font-weight: 900; opacity: 0.9;
-      background: linear-gradient(#43e084, #1f9d52);
-      box-shadow: 0 8px 0 #17773d, 0 12px 22px rgba(0,0,0,0.4),
-        inset 0 3px 8px rgba(255,255,255,0.35);
-      transition: transform .05s ease, box-shadow .05s ease;
+    .dr-pedal { position: relative; width: clamp(92px, 24vw, 116px); aspect-ratio: 0.78; height: auto;
+      border: none; border-radius: 0; padding: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+      color: #06210f; font-family: system-ui, sans-serif; font-weight: 900; opacity: 0.98;
+      background: url("${gasPedalUrl}") center/100% 100% no-repeat;
+      filter: drop-shadow(0 9px 9px rgba(0,0,0,.38));
+      box-shadow: none; transition: transform .05s ease, filter .05s ease;
       touch-action: none; -webkit-tap-highlight-color: transparent; }
     .dr-pedal.is-down { transform: translateY(6px);
-      box-shadow: 0 2px 0 #17773d, 0 6px 12px rgba(0,0,0,0.4), inset 0 3px 8px rgba(255,255,255,0.25); }
-    .dr-pedal-arrow { font-size: clamp(30px, 9vw, 42px); line-height: 1; }
-    .dr-pedal-label { font-size: clamp(12px, 3.4vw, 16px); letter-spacing: 0.12em; }
+      filter: drop-shadow(0 3px 4px rgba(0,0,0,.34)) brightness(.92); }
+    .dr-pedal-arrow { display: none; }
+    .dr-pedal-label { position: absolute; bottom: 12%; font-size: clamp(12px, 3.4vw, 16px);
+      letter-spacing: 0.12em; text-shadow: 0 1px rgba(255,255,255,.28); }
 
     .dr-reverse { width: clamp(58px, 15vw, 80px); height: clamp(36px, 9vw, 50px);
       border: none; border-radius: 16px;

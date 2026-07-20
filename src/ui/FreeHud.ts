@@ -204,7 +204,9 @@ export class FreeHud {
 
   private renderStopRows(): void {
     if (!this.currentStopPoi) return;
-    const orders = this.board.ordersAt(this.currentStopPoi);
+    // The supplied shop panel has three dedicated low-poly order slots. Keep
+    // the global job board complete, but present the best three local choices.
+    const orders = this.board.ordersAt(this.currentStopPoi).slice(0, 3);
     const hasActive = !!this.board.active;
     this.els.stopNote.classList.toggle('show', hasActive);
     this.els.stopList.classList.toggle('disabled', hasActive);

@@ -620,3 +620,63 @@ araç varyantıyla değiştirildi.
 - `tools/playtest/shots/world-map-rush.png`
 - `tools/playtest/shots/world-map-free.png`
 - `CODEX_WORK_LOG.md`
+
+---
+
+# Uretilen low-poly UI asset entegrasyonu — 20 Temmuz 2026
+
+## Asset hazirlama
+
+- Kullanici tarafindan verilen dort PNG incelendi. Dosyalar gercek alfa yerine
+  goruntunun icine basilmis gri-beyaz dama arka plan tasiyordu ve toplam boyutlari
+  yaklasik 12 MB idi.
+- Image generation duzenleme akisi ile dis arka planlar tek renk chroma-key'e
+  cevrildi; yerel matte/despill islemiyle seffaf alfa cikartildi.
+- Tasarimlar mobil runtime icin kirpilip WebP'ye optimize edildi:
+  - `order-board.webp`: 41.55 KB
+  - `speedometer.webp`: 10.12 KB
+  - `gas-pedal.webp`: 8.05 KB
+  - `jobs-button.webp`: 4.38 KB
+- Toplam runtime UI asset yuku yaklasik 64 KB; kaynaklardaki dama zemin ve dis
+  watermark oyuna tasinmadi.
+
+## Entegrasyon
+
+- Yesil low-poly asset, GAZ kontrolunun gercek buton yuzeyi oldu. HTML `GAZ`
+  etiketi ve mevcut pointer-capture/dokunma davranisi korunuyor.
+- Low-poly hiz cercevesi SERBEST km/h gostergesine uygulandi; gercek hiz metni
+  HTML olarak canli kaldi ve hiz limiti/kirmizi uyari durumu korunuyor.
+- Clipboard asset'i `Isler` butonunun ikonu oldu. Dar 390 px ekranda HUD tasmasini
+  onlemek icin SERBEST rozeti ve Isler butonu dikey hizalandi.
+- Buyuk dukkan paneli yalniz stop-to-order ekranina uygulandi. Dukkan adi, hedef,
+  mesafe, sure, ceza ve odul degerleri gercek oyun verisi olarak artwork yuvalarina
+  bindirildi; click alanlari ve erisilebilir HTML butonlari korundu.
+- Artwork uc siparis yuvasi tasidigi icin lokal dukkan paneli en iyi uc siparisi
+  gosteriyor; global Is Panosu tam teklif listesini gostermeye devam ediyor.
+
+## Dogrulama
+
+- Yeni `npm run playtest:ui-assets`: PASS.
+  - Dort assetin CSS baglantisi, 390x844 viewport sinirlari ve uc siparis yuvasi PASS.
+  - Siparise dokunma gercek isi kabul etti ve paneli kapatti.
+  - Konsol/page hatasi yok.
+- `npm run playtest:mobile-controls`: RUSH ve SERBEST PASS; gaz basma/birakma,
+  pointer capture, direksiyon ve geri kontrolu korunuyor.
+- `npm run playtest:modes`: RUSH ve SERBEST PASS.
+- `npm run build`: PASS; dort optimize WebP production bundle'a dahil.
+- `ui-assets-hud.png` ve `ui-assets-orders.png` 390x844 boyutta gozle incelendi.
+
+## Guncellenen/eklenen dosyalar
+
+- `src/assets/ui/order-board.webp`
+- `src/assets/ui/speedometer.webp`
+- `src/assets/ui/gas-pedal.webp`
+- `src/assets/ui/jobs-button.webp`
+- `src/ui/DriveControls.ts`
+- `src/ui/FreeHud.templates.ts`
+- `src/ui/FreeHud.ts`
+- `tools/playtest/ui-assets.mjs`
+- `tools/playtest/shots/ui-assets-hud.png`
+- `tools/playtest/shots/ui-assets-orders.png`
+- `package.json`
+- `CODEX_WORK_LOG.md`
