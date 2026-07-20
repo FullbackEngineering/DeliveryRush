@@ -17,6 +17,7 @@ import { ChaseCamera } from '@/render/ChaseCamera';
 import { DriveControls } from '@/ui/DriveControls';
 import { Hud } from '@/ui/Hud';
 import { FreeHud } from '@/ui/FreeHud';
+import { WorldMap, WorldMapMarker } from '@/ui/WorldMap';
 import { ModeSelect } from '@/ui/ModeSelect';
 import { GarageScreen } from '@/ui/GarageScreen';
 import { MarketScreen } from '@/ui/MarketScreen';
@@ -113,6 +114,31 @@ function startRush(): void {
   bus.on(GameEvent.ControlReverse, (on: boolean) => vehicle.setReverse(run.running && on));
 
   new Hud(ui, () => run.start(), goMenu);
+  const worldMap = new WorldMap({
+    mount: ui,
+    scene,
+    grid,
+    placement: 'rush',
+    viewRadiusM: 220,
+    worldUpdateHz: 0,
+    overlayUpdateHz: 15,
+    getCenter: () => ({ x: vehicle.x, z: vehicle.z }),
+    getSnapshot: () => {
+      const order = orders.current;
+      const node = order ? (order.pickedUp ? order.dropoff : order.pickup) : null;
+      const target = node ? grid.nodePos(node.col, node.row) : null;
+      const markers: WorldMapMarker[] = target ? [{
+        ...target,
+        kind: order!.pickedUp ? 'dropoff' : 'pickup',
+        label: order!.kind,
+      }] : [];
+      return {
+        player: { x: vehicle.x, z: vehicle.z, yaw: vehicle.yaw, kind: 'player' },
+        markers,
+        route: target ? [{ x: vehicle.x, z: vehicle.z }, target] : undefined,
+      };
+    },
+  });
 
   const carPos = new THREE.Vector3();
   game.onUpdate((dt) => {
@@ -122,12 +148,13 @@ function startRush(): void {
     traffic.update(dt, vehicle, run.running);
     carPos.set(vehicle.x, 1, vehicle.z);
     chase.update(dt, carPos, vehicle.yaw, vehicle.normalizedSpeed);
+    worldMap.update(dt);
   });
   wireFps(vehicle);
 
   game.start();
   run.start();
-  exposeHarness(game, vehicle, orders, traffic, grid, run);
+  exposeHarness(game, vehicle, orders, traffic, grid, run, undefined, worldMap);
 }
 
 // --- SERBEST: the large open city (free roam) ------------------------------
@@ -158,7 +185,7 @@ function startFree(): void {
   const traffic = new Traffic3D(grid, rng);
   scene.add(traffic.group);
   // Patrol police: speeding past one (or crashing beside one) → fine + short chase.
-  const police = new Police(grid, rng, copTemplate);
+  const police = new Police(grid, rng, copTemplate, traffic.signals);
   scene.add(police.group);
   const chase = new ChaseCamera(game.camera);
 
@@ -175,6 +202,39 @@ function startFree(): void {
   const arrow = new NavArrow();
   scene.add(arrow.group);
   const freeHud = new FreeHud(ui, board, grid, pois.list, goMenu);
+  const mapSlot = ui.querySelector<HTMLElement>('.dr-free-map-wrap')!;
+  mapSlot.replaceChildren();
+  const worldMap = new WorldMap({
+    mount: mapSlot,
+    scene,
+    grid,
+    placement: 'embedded',
+    viewRadiusM: 320,
+    worldUpdateHz: 0,
+    overlayUpdateHz: 15,
+    getCenter: () => ({ x: vehicle.x, z: vehicle.z }),
+    getSnapshot: () => {
+      const job = board.active;
+      const target = job ? (job.state === 'toPickup' ? job.source : job.dest) : null;
+      const markers: WorldMapMarker[] = pois.list.map((poi) => ({
+        x: poi.x,
+        z: poi.z,
+        kind: 'poi',
+        color: `#${poi.color.toString(16).padStart(6, '0')}`,
+      }));
+      if (target) markers.push({
+        x: target.x,
+        z: target.z,
+        kind: job!.state === 'toPickup' ? 'pickup' : 'dropoff',
+        label: target.name,
+      });
+      return {
+        player: { x: vehicle.x, z: vehicle.z, yaw: vehicle.yaw, kind: 'player' },
+        markers,
+        route: target ? [{ x: vehicle.x, z: vehicle.z }, { x: target.x, z: target.z }] : undefined,
+      };
+    },
+  });
   board.refresh();
 
   const carPos = new THREE.Vector3();
@@ -186,7 +246,6 @@ function startFree(): void {
     carPos.set(vehicle.x, 1, vehicle.z);
     chase.update(dt, carPos, vehicle.yaw, vehicle.normalizedSpeed);
     freeHud.setSpeed(vehicle.speedKmh);
-    freeHud.updateMap(dt, vehicle.x, vehicle.z, vehicle.yaw);
 
     pois.update(dt);
     board.tick(dt, vehicle.x, vehicle.z, vehicle.speedKmh);
@@ -203,11 +262,12 @@ function startFree(): void {
       arrow.hide();
       pois.highlightTarget(null, 0);
     }
+    worldMap.update(dt);
   });
   wireFps(vehicle);
 
   game.start();
-  exposeHarness(game, vehicle, null, traffic, grid, null, { board, pois, police, decor });
+  exposeHarness(game, vehicle, null, traffic, grid, null, { board, pois, police, decor }, worldMap);
 }
 
 // --- GARAJ: the car gallery / showroom (browse, select, upgrade, unlock) ---
@@ -269,6 +329,7 @@ function exposeHarness(
   g: Game, vehicle: Vehicle3D, orders: Orders3D | null, traffic: Traffic3D,
   grid: Grid, run: RunController | null,
   free?: { board: JobBoard; pois: PoiSystem; police: Police; decor: CityDecor },
+  worldMap?: WorldMap,
 ): void {
   (window as unknown as Record<string, unknown>).__three = {
     get fps() { return g.fps; },
@@ -313,7 +374,7 @@ function exposeHarness(
     police: free?.police ?? null,
     get chasing() { return free?.police?.isChasing ?? false; },
     get decorPlots() { return free?.decor?.plotCenters() ?? null; },
-    vehicle, orders, traffic, run, game: g, grid, bus,
+    vehicle, orders, traffic, run, game: g, grid, bus, worldMap,
   };
 }
 

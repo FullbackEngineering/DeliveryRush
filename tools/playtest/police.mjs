@@ -1,10 +1,11 @@
 /**
  * Phase 2 (police / speeding / fines) check. Boots SERBEST (`?mode=free`), then:
  *   1) confirms patrol cops exist and render;
- *   2) makes the player speed while shepherding a patrol cop into notice range,
+ *   2) verifies patrols remain on right-hand lanes with cardinal headings;
+ *   3) makes the player speed while shepherding a patrol cop into notice range,
  *      and asserts a fine fires: `Profile.coins` drops, a chase starts
  *      (`ChaseStarted` + `police.isChasing`), and the fine event carried an amount;
- *   3) (soft) moves every cop far away and confirms the chase can END (escape).
+ *   4) (soft) moves every cop far away and confirms the chase can END (escape).
  * Screenshots the chase. Run: node tools/playtest/police.mjs  (dev server up).
  */
 import puppeteer from 'puppeteer-core';
@@ -43,6 +44,30 @@ try {
     draws: window.__three.draws,
   }));
   console.log('WORLD', JSON.stringify(world));
+
+  // --- Patrol rule check: lane pose cannot drift sideways --------------------
+  const patrol = await page.evaluate(async () => {
+    const t = window.__three, police = t.police;
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const before = police.cops.map((c) => ({
+      axis: c.axis, line: c.line, dir: c.dir, x: c.x, z: c.z,
+    }));
+    await sleep(1400);
+    const after = police.cops.map((c, i) => {
+      const b = before[i];
+      const sameRoute = b.axis === c.axis && b.line === c.line && b.dir === c.dir;
+      const lateralDrift = sameRoute
+        ? Math.abs(c.axis === 'z' ? c.x - b.x : c.z - b.z)
+        : 0;
+      const forward = sameRoute
+        ? c.dir * ((c.axis === 'z' ? c.z - b.z : c.x - b.x))
+        : 0;
+      return { sameRoute, lateralDrift, forward };
+    });
+    return { state: police.debugState(), after };
+  });
+  console.log('PATROL', JSON.stringify(patrol));
+  await page.screenshot({ path: `${SHOT_DIR}/police-patrol.png` });
 
   // --- Speed + shepherd a cop into range until a fine fires -------------------
   const fine = await page.evaluate(async () => {
@@ -95,11 +120,15 @@ try {
   console.log('ESCAPE (soft)', JSON.stringify(escape));
 
   const coinsDropped = fine.coinsAfter < fine.coinsBefore;
-  ok = world.cops >= 1 && fine.chaseStarted && fine.chasing && coinsDropped
+  const patrolRulesOk = patrol.state.patrols >= 1
+    && patrol.state.rightLaneViolations === 0
+    && patrol.state.cardinalHeadingViolations === 0
+    && patrol.after.every((p) => !p.sameRoute || p.lateralDrift < 0.02);
+  ok = world.cops >= 1 && patrolRulesOk && fine.chaseStarted && fine.chasing && coinsDropped
     && fine.fineAmount > 0 && bannerShown && errors.length === 0;
 
   console.log('RESULT', ok ? 'PASS' : 'FAIL',
-    `cops=${world.cops} chaseStarted=${fine.chaseStarted} coins=${fine.coinsBefore}->${fine.coinsAfter} `
+    `cops=${world.cops} patrolRules=${patrolRulesOk} chaseStarted=${fine.chaseStarted} coins=${fine.coinsBefore}->${fine.coinsAfter} `
     + `fine=${fine.fineAmount}(${fine.fineReason}) banner=${bannerShown} escaped=${escape.ended} draws=${world.draws}`);
 } catch (e) {
   errors.push('FATAL: ' + e.message);

@@ -35,7 +35,7 @@ try {
   const initial = await page.evaluate(() => ({
     ...window.__three.traffic.debugState(),
     modelVariants: window.__three.traffic['trafficModelMeshes'].length,
-    signalCount: window.__three.traffic['signalApproaches'].length,
+    signalCount: window.__three.traffic.signals['approaches'].length,
     draws: window.__three.draws,
   }));
   console.log('INITIAL', JSON.stringify(initial));
@@ -87,8 +87,8 @@ try {
     t.vehicle.z = car.pos;
 
     const green = 7, amber = 1.4, allRed = 0.7;
-    traffic['signalTimer'] = green + amber + allRed + 1; // horizontal green => vertical red
-    traffic['updateSignals'](0);
+    traffic.signals['timer'] = green + amber + allRed + 1; // horizontal green => vertical red
+    traffic.signals.update(0);
     for (let i = 0; i < 360; i++) traffic.update(1 / 60, t.vehicle, false);
     const stopPosition = row * grid.block - grid.halfAt(row) - 3.15;
     const red = {
@@ -96,8 +96,8 @@ try {
       error: Math.abs(stopPosition - car.pos), signal: traffic.debugState().vertical,
     };
 
-    traffic['signalTimer'] = 1; // vertical green
-    traffic['updateSignals'](0);
+    traffic.signals['timer'] = 1; // vertical green
+    traffic.signals.update(0);
     const greenStart = car.pos;
     for (let i = 0; i < 180; i++) traffic.update(1 / 60, t.vehicle, false);
     const greenMove = car.pos - greenStart;
@@ -143,8 +143,8 @@ try {
     car.active = true;
     car.axis = 'z'; car.dir = 1; car.line = line; car.laneHalf = lane;
     car.cruiseSpeed = 11; car.speed = 11; car.pos = t.vehicle.z - 32;
-    traffic['signalTimer'] = 1; // vertical green: only the player can stop it
-    traffic['updateSignals'](0);
+    traffic.signals['timer'] = 1; // vertical green: only the player can stop it
+    traffic.signals.update(0);
     for (let i = 0; i < 360; i++) traffic.update(1 / 60, t.vehicle, true);
 
     const stopped = {

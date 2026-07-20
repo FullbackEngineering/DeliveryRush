@@ -150,6 +150,106 @@ Yeni dosyalar:
 
 ---
 
+# Polis devriye AI trafik kurallari duzeltmesi — 20 Temmuz 2026
+
+## Kok neden ve uygulama
+
+- Eski polis devriyesi iki boyutlu rastgele waypoint seciyor, hedefe capraz donuyor ve
+  yol koridoru cozumleyicisine carpinca yol icinde duzensizce savruluyordu.
+- Waypoint devriyesi kaldirildi. Polisler artik normal trafik araclariyla ayni yol
+  modeliyle ilerliyor: sabit yol ekseni, yonune gore sag serit merkezi ve kardinal
+  arac acisi.
+- Devriye polisi trafik sistemiyle ayni `TrafficSignals` nesnesini kullaniyor;
+  kirmizi/isik fazinda stop cizgisine frenleyerek duruyor.
+- Polisler ayni seritteki diger devriye aracina takip mesafesi birakiyor ve oyuncu
+  seridi kapatiyorsa normal trafik gibi carpmadan once duruyor.
+- Kovalamaca davranisi korunuyor. Kovalamaca bittiginde polis en yakin yasal sag
+  seride yumusakca hizalaniyor ve duz devriyeye geri donuyor.
+- `Traffic3D.signals` salt-okunur ortak denetleyici olarak acildi; `boot.ts` bu nesneyi
+  polise iletiyor. Trafik playtest'i yeni `TrafficSignals` sahipligine gore guncellendi.
+
+## Dogrulama
+
+- `node tools/playtest/police.mjs`: PASS.
+  - Devriye polisi: `3`; sag serit ihlali: `0`; kardinal yon ihlali: `0`.
+  - 1.4 saniyelik hareket orneginde uc polisin yanal sapmasi da `0 m`.
+  - Ceza, kovalamaca banner'i ve kacis dongusu PASS; konsol hatasi yok.
+- `npm run playtest:traffic`: PASS.
+  - 676 sinyal yaklasimi, sag serit ihlali `0`, kirmizida durma ve oyuncuya yol
+    verme testleri PASS.
+- `npm run playtest:modes`: PASS; RUSH ve SERBEST 80/80 yol ornegi gecerli.
+- `npm run typecheck`: PASS.
+- `npm run build`: PASS.
+- 390x844 `police-patrol.png` ve `police-chase.png` ekran goruntuleri olusturuldu;
+  devriye sahnesi gozle incelendi.
+
+## Guncellenen dosyalar
+
+- `src/world/Police.ts`
+- `src/world/Traffic3D.ts`
+- `src/boot.ts`
+- `tools/playtest/police.mjs`
+- `tools/playtest/traffic-rules.mjs`
+- `tools/playtest/shots/police-patrol.png`
+- `tools/playtest/shots/police-chase.png`
+- `CODEX_WORK_LOG.md`
+
+---
+
+# RUSH + SERBEST birebir canlı dünya haritası — 21 Temmuz 2026
+
+## Durum
+
+**Tamamlandı ve iki moda entegre edildi.** Mevcut sembolik mini harita yerine oyunla
+aynı Three.js sahnesini ortografik kamerayla tepeden gösteren `WorldMap` bileşeni
+RUSH ve SERBEST çalışma döngülerine bağlandı.
+
+## Yapılanlar
+
+- Harita dairesel ve oyuncu merkezli çalışıyor. RUSH oyuncunun `220 m`, SERBEST
+  `320 m` yarıçapındaki çevresini gösteriyor; böylece yol/bina ayrıntıları okunuyor.
+- Harita yol şeması tahmin etmiyor; aktif sahne ağacını render ettiği için yollar,
+  avenue genişlikleri, gerçek bina yerleşimleri, parklar, dekor GLB'leri, POI yapıları,
+  trafik, polis, trafik ışıkları, araçlar ve beacon'lar dünyayla birebir eşleşiyor.
+- Telefon boyutunda okunabilirlik için oyuncu yön oku, POI, pickup/dropoff, polis ve
+  trafik marker tiplerini destekleyen hafif bir Canvas overlay eklendi.
+- Dünya koordinatı → harita koordinatı dönüşümü iki modun gerçek `Grid.worldW/worldD`
+  ölçülerini kullanıyor; kuzey/world `-Z` ekranın üstünde kalıyor.
+- Pahalı 3D dünya katmanı `0.5 Hz`, ucuz oyuncu/hedef overlay'i `12 Hz` yenileniyor.
+  Çözünürlük 136 CSS px, DPR en fazla 1.5; antialias ile gölgeler kapalı.
+- `destroy()` ile WebGL renderer/context ve DOM öğesi temizlenebiliyor.
+- RUSH hedefi ve SERBEST POI/aktif iş hedefi için wiring örnekleri
+  `docs/WORLD_MAP_INTEGRATION.md` içine yazıldı.
+
+## Doğrulama
+
+- `node tools/playtest/world-map.mjs`: PASS.
+  - RUSH: 14×14 grid, 840×840 m, tek dünya canvas + tek overlay canvas.
+  - SERBEST: 24×24 grid, 1728×1728 m, tek dünya canvas + tek overlay canvas.
+  - Her iki modda tek entegre harita, dairesel maske, oyuncuyu takip eden kamera ve
+    konsol hatası olmaması doğrulandı.
+- 390×844 `world-map-rush.png` ve `world-map-free.png` gözle incelendi. Yol/blok
+  geometrileri gerçek şehir yerleşimiyle aynı, tepeden yön doğru ve marker görünür.
+- `npm run typecheck`: PASS.
+- `npm run build`: PASS.
+- `npm run playtest:modes`: PASS; iki modda yol dışı ihlal `0/80`, konsol hatası yok.
+
+## Yeni dosyalar
+
+- `src/ui/WorldMap.ts`
+- `tools/playtest/world-map.mjs`
+- `docs/WORLD_MAP_INTEGRATION.md`
+
+## Entegrasyon
+
+- `src/boot.ts`: RUSH ve SERBEST snapshot/wiring eklendi.
+- `src/ui/FreeHud.templates.ts`: SERBEST harita yuvası dairesel yapıldı; eski
+  sembolik canvas runtime'da gerçek `WorldMap` ile değiştiriliyor.
+- RUSH haritası sipariş kartının altında sağ üstte sabitleniyor.
+- `Balance.ts`, `EventBus.ts`, araç, kamera ve GLB dosyaları değiştirilmedi.
+
+---
+
 # Trafiğin oyuncuya yol vermesi — 20 Temmuz 2026
 
 ## Yapılanlar
@@ -475,5 +575,108 @@ araç varyantıyla değiştirildi.
 - `src/ui/FreeHud.ts`
 - `src/ui/MarketScreen.ts`
 - `tools/playtest/mobile-controls.mjs`
+- `package.json`
+- `CODEX_WORK_LOG.md`
+
+---
+
+# Canli harita akicilik optimizasyonu — 20 Temmuz 2026
+
+## Kok neden ve yeni yontem
+
+- Eski harita aktif Three.js sahnesini ayri bir WebGL renderer ile iki saniyede bir
+  yeniden ciziyordu. Bu seyrek ama agir tam-sahne render'i mobilde kare suresi
+  sicrama/takilmasi olusturuyordu.
+- Sehir statik oldugu icin ustten gorunumu acilista bir kez yuksek cozumlu bir cache
+  canvas'ina aliniyor. Dairesel harita artik bu goruntuden oyuncunun cevresindeki
+  parcayi kirpip gosteriyor; surus sirasinda ikinci WebGL render'i calismiyor.
+- Harita merkezi ucuz canvas kirpmasiyla 30 Hz yenileniyor ve oyuncuya exponential
+  smoothing ile yaklasiyor. Isaret/POI snapshot'i 15 Hz yenileniyor.
+- Onceki kod her marker koordinatinda `getSnapshot()` fonksiyonunu tekrar cagiriyordu.
+  Snapshot artik yenileme basina yalniz bir kez uretilip tum marker'lar tarafindan
+  paylasiliyor.
+- Dairesel gorunum, RUSH 220 m ve SERBEST 320 m yerel gorus alanlari korundu.
+
+## Dogrulama
+
+- `node tools/playtest/world-map.mjs`: RUSH ve SERBEST PASS.
+  - 2.2 saniyelik surus orneginde harita kaynak WebGL render sayisi iki modda da `0`.
+  - Oyuncu takibi, dairesel maske, tek harita canvas'i ve HUD entegrasyonu PASS.
+- `npm run playtest:modes`: PASS; RUSH ve SERBEST yol ornekleri 80/80 gecerli.
+- `npm run playtest:mobile-controls`: RUSH ve SERBEST PASS; tum dokunmatik kontroller
+  calisiyor. Headless test, geri sayim throttling'inden etkilenmemesi icin canli run'i
+  dogrudan baslatacak sekilde saglamlastirildi.
+- `npm run typecheck`: PASS.
+- `npm run build`: PASS.
+- 390x844 `world-map-rush.png`, `world-map-free.png` ve mobil kontrol goruntuleri
+  gozle incelendi; harita okunabilir ve dogru merkezli.
+
+## Guncellenen dosyalar
+
+- `src/ui/WorldMap.ts`
+- `src/boot.ts`
+- `tools/playtest/world-map.mjs`
+- `tools/playtest/mobile-controls.mjs`
+- `tools/playtest/shots/world-map-rush.png`
+- `tools/playtest/shots/world-map-free.png`
+- `CODEX_WORK_LOG.md`
+
+---
+
+# Uretilen low-poly UI asset entegrasyonu — 20 Temmuz 2026
+
+## Asset hazirlama
+
+- Kullanici tarafindan verilen dort PNG incelendi. Dosyalar gercek alfa yerine
+  goruntunun icine basilmis gri-beyaz dama arka plan tasiyordu ve toplam boyutlari
+  yaklasik 12 MB idi.
+- Image generation duzenleme akisi ile dis arka planlar tek renk chroma-key'e
+  cevrildi; yerel matte/despill islemiyle seffaf alfa cikartildi.
+- Tasarimlar mobil runtime icin kirpilip WebP'ye optimize edildi:
+  - `order-board.webp`: 41.55 KB
+  - `speedometer.webp`: 10.12 KB
+  - `gas-pedal.webp`: 8.05 KB
+  - `jobs-button.webp`: 4.38 KB
+- Toplam runtime UI asset yuku yaklasik 64 KB; kaynaklardaki dama zemin ve dis
+  watermark oyuna tasinmadi.
+
+## Entegrasyon
+
+- Yesil low-poly asset, GAZ kontrolunun gercek buton yuzeyi oldu. HTML `GAZ`
+  etiketi ve mevcut pointer-capture/dokunma davranisi korunuyor.
+- Low-poly hiz cercevesi SERBEST km/h gostergesine uygulandi; gercek hiz metni
+  HTML olarak canli kaldi ve hiz limiti/kirmizi uyari durumu korunuyor.
+- Clipboard asset'i `Isler` butonunun ikonu oldu. Dar 390 px ekranda HUD tasmasini
+  onlemek icin SERBEST rozeti ve Isler butonu dikey hizalandi.
+- Buyuk dukkan paneli yalniz stop-to-order ekranina uygulandi. Dukkan adi, hedef,
+  mesafe, sure, ceza ve odul degerleri gercek oyun verisi olarak artwork yuvalarina
+  bindirildi; click alanlari ve erisilebilir HTML butonlari korundu.
+- Artwork uc siparis yuvasi tasidigi icin lokal dukkan paneli en iyi uc siparisi
+  gosteriyor; global Is Panosu tam teklif listesini gostermeye devam ediyor.
+
+## Dogrulama
+
+- Yeni `npm run playtest:ui-assets`: PASS.
+  - Dort assetin CSS baglantisi, 390x844 viewport sinirlari ve uc siparis yuvasi PASS.
+  - Siparise dokunma gercek isi kabul etti ve paneli kapatti.
+  - Konsol/page hatasi yok.
+- `npm run playtest:mobile-controls`: RUSH ve SERBEST PASS; gaz basma/birakma,
+  pointer capture, direksiyon ve geri kontrolu korunuyor.
+- `npm run playtest:modes`: RUSH ve SERBEST PASS.
+- `npm run build`: PASS; dort optimize WebP production bundle'a dahil.
+- `ui-assets-hud.png` ve `ui-assets-orders.png` 390x844 boyutta gozle incelendi.
+
+## Guncellenen/eklenen dosyalar
+
+- `src/assets/ui/order-board.webp`
+- `src/assets/ui/speedometer.webp`
+- `src/assets/ui/gas-pedal.webp`
+- `src/assets/ui/jobs-button.webp`
+- `src/ui/DriveControls.ts`
+- `src/ui/FreeHud.templates.ts`
+- `src/ui/FreeHud.ts`
+- `tools/playtest/ui-assets.mjs`
+- `tools/playtest/shots/ui-assets-hud.png`
+- `tools/playtest/shots/ui-assets-orders.png`
 - `package.json`
 - `CODEX_WORK_LOG.md`

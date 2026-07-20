@@ -44,6 +44,12 @@ async function testMode(mode) {
   await page.goto(`${BASE}?mode=${mode}`, { waitUntil: 'networkidle2', timeout: 30000 });
   await page.waitForFunction(() => window.__three?.vehicle && window.__three?.bus, { timeout: 15000 });
   if (mode === 'rush') {
+    // Headless Chrome can throttle the countdown clock heavily. Enter the live
+    // run directly so this harness measures touch controls, not timer cadence.
+    await page.evaluate(() => {
+      const run = window.__three.run;
+      if (run && !run.running) run['beginRunning']();
+    });
     await page.waitForFunction(() => window.__three?.state?.running === true, { timeout: 8000 });
   }
   await page.waitForSelector('.dr-wheel');

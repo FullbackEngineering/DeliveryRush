@@ -1,5 +1,8 @@
 import { Job } from '@/types';
 import { formatTime } from '@/utils/MathUtils';
+import orderBoardUrl from '@/assets/ui/order-board.webp?url';
+import speedometerUrl from '@/assets/ui/speedometer.webp?url';
+import jobsButtonUrl from '@/assets/ui/jobs-button.webp?url';
 
 /**
  * Pure markup/CSS for `FreeHud`: the static DOM template, the job-row HTML
@@ -15,7 +18,7 @@ export function rowHtml(j: Job): string {
       <div class="dr-job-row-icon">${j.kind.emoji}</div>
       <div class="dr-job-row-info">
         <div class="dr-job-row-title">${j.special ? '⭐ ' : ''}${j.source.name} → ${j.dest.name}</div>
-        <div class="dr-job-row-meta">${km} km · ⏱ ${formatTime(j.timeLimit)} · ⚠️ maks -${j.pay} 🪙</div>
+        <div class="dr-job-row-meta"><span>${km} km</span><span>${formatTime(j.timeLimit)}</span><span>maks -${j.pay}</span></div>
       </div>
       <div class="dr-job-row-pay">+${j.pay}<span>🪙</span></div>
     </button>`;
@@ -30,7 +33,7 @@ export function stopRowHtml(j: Job): string {
       <div class="dr-job-row-icon">${j.kind.emoji}</div>
       <div class="dr-job-row-info">
         <div class="dr-job-row-title">${j.special ? '⭐ ' : ''}→ ${j.dest.name}</div>
-        <div class="dr-job-row-meta">${km} km · ⏱ ${formatTime(j.timeLimit)} · ⚠️ maks -${j.pay} 🪙</div>
+        <div class="dr-job-row-meta"><span>${km} km</span><span>${formatTime(j.timeLimit)}</span><span>maks -${j.pay}</span></div>
       </div>
       <div class="dr-job-row-pay">+${j.pay}<span>🪙</span></div>
     </button>`;
@@ -40,7 +43,7 @@ export const FREE_HUD_TEMPLATE = `
   <div class="dr-free-top">
     <div class="dr-free-left">
       <div class="dr-free-badge">🌆 SERBEST</div>
-      <button class="dr-free-jobs-btn">📋 İşler</button>
+      <button class="dr-free-jobs-btn"><span class="dr-free-jobs-icon"></span><span>İşler</span></button>
     </div>
     <div class="dr-free-right">
       <div class="dr-free-right-row">
@@ -109,19 +112,27 @@ export function injectFreeHudStyle(): void {
       font-weight: 900; font-size: 14px; box-shadow: 0 4px 14px rgba(0,0,0,0.3); }
     .dr-free-badge { border-left: 4px solid #5aa9ff; }
     .dr-free-wallet { color: #ffd54a; }
-    .dr-free-speed { text-align: center; font-variant-numeric: tabular-nums; transition: color .15s, border-color .15s, background .15s; }
-    .dr-free-speed b { font-size: 17px; }
-    .dr-free-speed span { font-size: 11px; color: #9fb0c9; margin-left: 2px; }
+    .dr-free-speed { width: clamp(92px,24vw,112px); height: clamp(52px,13vw,62px); padding: 0 14px;
+      display: flex; align-items: center; justify-content: center; gap: 3px; text-align: center;
+      font-variant-numeric: tabular-nums; border: 0; border-radius: 0; box-shadow: none;
+      background: url("${speedometerUrl}") center/100% 100% no-repeat;
+      transition: color .15s, filter .15s; }
+    .dr-free-speed b { font-size: 18px; text-shadow: 0 2px 4px #070c16; }
+    .dr-free-speed span { font-size: 10px; color: #9fb0c9; margin-left: 1px; }
     /* Over the local speed limit: pill goes red so you know you're risking a fine. */
-    .dr-free-speed.over { color: #ffd7d7; border-color: rgba(239,68,68,0.7);
-      background: rgba(120,20,20,0.82); animation: dr-free-pulse .7s ease-in-out infinite; }
+    .dr-free-speed.over { color: #ffd7d7; filter: drop-shadow(0 0 6px rgba(239,68,68,.8));
+      animation: dr-free-pulse .7s ease-in-out infinite; }
     .dr-free-speed.over span { color: #ffb3b3; }
     .dr-free-jobs-btn, .dr-free-menu { background: rgba(13,19,31,0.72); border: 1px solid rgba(120,150,200,0.22);
       color: #cdd8ea; border-radius: 14px; padding: 9px 12px; font-weight: 900; font-size: 13px; cursor: pointer;
       box-shadow: 0 4px 14px rgba(0,0,0,0.3); -webkit-tap-highlight-color: transparent; }
     .dr-free-jobs-btn:active, .dr-free-menu:active { transform: translateY(2px); }
+    .dr-free-jobs-btn { display: flex; align-items: center; gap: 6px; padding: 5px 10px 5px 6px; }
+    .dr-free-jobs-icon { width: 34px; height: 34px; flex: 0 0 34px;
+      background: url("${jobsButtonUrl}") center/contain no-repeat; }
+    .dr-free-left { flex-direction: column; align-items: flex-start; gap: 6px; }
 
-    .dr-free-map-wrap { width: clamp(96px, 28vw, 128px); height: clamp(96px, 28vw, 128px); border-radius: 18px;
+    .dr-free-map-wrap { width: clamp(96px, 28vw, 128px); height: clamp(96px, 28vw, 128px); border-radius: 50%;
       overflow: hidden; margin-top: 2px;
       background: rgba(13,19,31,0.72); border: 1px solid rgba(120,150,200,0.22); box-shadow: 0 4px 14px rgba(0,0,0,0.3); }
     .dr-free-map { display: block; width: 100%; height: 100%; }
@@ -181,7 +192,7 @@ export function injectFreeHudStyle(): void {
       align-items: center; justify-content: center; background: rgba(255,255,255,0.06); border-radius: 10px; }
     .dr-job-row-info { flex: 1; min-width: 0; }
     .dr-job-row-title { font-weight: 800; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .dr-job-row-meta { font-size: 11px; color: #9fb0c9; margin-top: 2px; }
+    .dr-job-row-meta { font-size: 11px; color: #9fb0c9; margin-top: 2px; display: flex; gap: 8px; }
     .dr-job-row-pay { flex: 0 0 auto; font-weight: 900; font-size: 14px; color: #37d67a; }
     .dr-job-row-pay span { font-size: 12px; }
 
@@ -228,6 +239,37 @@ export function injectFreeHudStyle(): void {
     .dr-stop-note.show { display: block; }
     .dr-stop-list { overflow-y: auto; padding: 4px 12px 8px; display: flex; flex-direction: column; gap: 8px; }
     .dr-stop-list.disabled .dr-job-row { opacity: 0.4; pointer-events: none; }
+
+    /* Supplied low-poly shop-order artwork. Live HTML remains above the image,
+       preserving accessibility, localization and real job data. */
+    .dr-stop-sheet { left: 50%; right: auto; bottom: calc(env(safe-area-inset-bottom,0px) + 18px);
+      width: min(calc(100vw - 12px),420px); height: min(60vh,538px); max-height: none;
+      border: 0; border-radius: 0; box-shadow: none; padding: 0; overflow: hidden;
+      background: url("${orderBoardUrl}") center/100% 100% no-repeat;
+      transform: translate(-50%,18px); }
+    .dr-stop-panel.open .dr-stop-sheet { transform: translate(-50%,0); }
+    .dr-stop-head { height: 18%; flex: 0 0 18%; padding: 4.5% 6.5% 1% 28%; gap: 6px; }
+    .dr-stop-icon { display: none; }
+    .dr-stop-title { padding: 8px 10px; text-align: center; font-size: 14px; color: #e6edf7;
+      text-shadow: 0 2px 4px #070c16; }
+    .dr-stop-close { width: 34px; height: 34px; border-radius: 0; border: 0; background: transparent; }
+    .dr-stop-note { position: absolute; top: 16%; left: 8%; right: 8%; z-index: 2; margin: 0; }
+    .dr-stop-list { flex: 1; min-height: 0; overflow-y: auto; padding: 1.5% 6.5% 7%; gap: 1.6%; }
+    .dr-stop-list .dr-job-row { position: relative; flex: 1 1 0; min-height: 0; padding: 4.5% 5% 3% 22%;
+      border: 0; border-radius: 0; background: transparent; gap: 0; }
+    .dr-stop-list .dr-job-row.special { border: 0; background: rgba(255,213,74,.04); }
+    .dr-stop-list .dr-job-row-icon { display: none; }
+    .dr-stop-list .dr-job-row-info { align-self: stretch; display: flex; flex-direction: column; min-width: 0; }
+    .dr-stop-list .dr-job-row-title { height: 42%; padding: 2px 4px; color: #101a2b; font-size: clamp(10px,3vw,13px);
+      display: flex; align-items: center; text-shadow: 0 1px rgba(255,255,255,.45); }
+    .dr-stop-list .dr-job-row-meta { position: absolute; left: 16%; right: 24%; bottom: 9%; margin: 0;
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4%; color: #dbe7f8;
+      font-size: clamp(8px,2.4vw,10px); }
+    .dr-stop-list .dr-job-row-meta span { text-align: center; white-space: nowrap; }
+    .dr-stop-list .dr-job-row-pay { position: absolute; right: 3%; bottom: 14%; width: 19%; text-align: center;
+      color: #06210f; font-size: clamp(11px,3.2vw,14px); text-shadow: 0 1px rgba(255,255,255,.25); }
+    .dr-stop-list .dr-job-row-pay span { display: none; }
+    .dr-stop-list .dr-job-row:nth-child(3) { top: -7px; }
 
     /* --- Floating reward text --- */
     .dr-free-float-layer { position: fixed; top: 46%; left: 0; right: 0; text-align: center; z-index: 7; }

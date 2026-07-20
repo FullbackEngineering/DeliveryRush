@@ -13,6 +13,7 @@
     "playtest:feel": "node tools/playtest/feel.mjs",
     "playtest:touch": "node tools/playtest/touch.mjs",
     "playtest:mobile-controls": "node tools/playtest/mobile-controls.mjs",
+    "playtest:ui-assets": "node tools/playtest/ui-assets.mjs",
     "playtest:drive": "node tools/playtest/three-drive.mjs",
     "playtest:loop": "node tools/playtest/three-loop.mjs",
     "playtest:modes": "node tools/playtest/three-modes.mjs",

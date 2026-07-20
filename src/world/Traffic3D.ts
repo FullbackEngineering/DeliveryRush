@@ -55,7 +55,8 @@ export class Traffic3D {
   private trafficModelMeshes: THREE.InstancedMesh[] = [];
   private trafficModelsReady = false;
   private trafficModelStatus = 'loading';
-  private signals: TrafficSignals;
+  /** Shared road-signal controller; police patrols read the same phase. */
+  readonly signals: TrafficSignals;
   // True whenever at least one car/traffic-model instance matrix was written
   // this frame; gates the per-mesh `needsUpdate` flush in `update()` so idle
   // frames (no active car repositioned) skip the GPU buffer re-upload.
