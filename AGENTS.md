@@ -105,11 +105,11 @@ the 2D Phaser game this project was rewritten from: `main.ts`, `scenes/*`,
 `gameplay/*` (`Vehicle`, `CityGrid`, `TrafficSystem`), `systems/OrderSystem.ts`,
 `ui/{ControlPad,ControlPadHtml,UiKit}.ts`, `core/{TextureFactory,SceneKeys}.ts`,
 `data/{cards,themes}.ts`, `audio/AudioManager.ts`, `effects/Effects.ts`,
-`input/Haptics.ts`, `utils/ObjectPool.ts`. The `phaser` dependency exists only
-for this dead layer. These files are still physically in `src/` (not yet moved
-to a `src/legacy/` quarantine — see `docs/PROJE_TARAMA_VE_PLAN.md`) but are
-**not** part of the running game. If a file isn't reachable from `boot.ts`,
-treat it as dead reference material, not a place to add code.
+`input/Haptics.ts`, `utils/ObjectPool.ts`. These have been **quarantined into
+`src/legacy/`** and excluded from compilation (`tsconfig` `exclude`), and the
+`phaser` dependency (only that dead layer imported it) has been removed. Treat
+everything under `src/legacy/` as dead reference material, not a place to add
+code, and never import from it into the live game.
 
 ## Golden rule for Codex — where you may and may not touch
 Codex works in an independent lane, in parallel with Claude Code, on

@@ -125,12 +125,12 @@ the deleted-in-spirit 2D Phaser game this was rewritten from: `main.ts`,
 `systems/OrderSystem.ts`, `ui/{ControlPad,ControlPadHtml,UiKit}.ts`,
 `core/{TextureFactory,SceneKeys}.ts`, `data/{cards,themes}.ts`,
 `audio/AudioManager.ts`, `effects/Effects.ts`, `input/Haptics.ts`,
-`utils/ObjectPool.ts`. The `phaser` npm dependency exists only for this dead
-layer. **These files have NOT yet been moved or excluded** — they still sit at
-their original paths and `tsc`/the IDE still see them; the planned fix
-(`docs/PROJE_TARAMA_VE_PLAN.md`, İş A) is to relocate them to `src/legacy/`
-and add a `tsconfig` exclude. Until that lands: if a file you're about to edit
-isn't reachable from `boot.ts`, assume it's dead and don't build on it.
+`utils/ObjectPool.ts`. These have been **quarantined into `src/legacy/`** and
+excluded from compilation (`tsconfig` `exclude: ["src/legacy"]`), and the
+`phaser` dependency — which only that dead layer imported — has been removed
+from `package.json`. `src/legacy/` is kept as reference (some pieces, e.g.
+audio/haptics/effects, may be adapted to the 3D game later), but it is not
+built or bundled. Don't edit anything under `src/legacy/` expecting it to run.
 
 ## Conventions & gotchas
 - **Tune via `core/Balance.ts`.** Don't sprinkle magic numbers in systems.

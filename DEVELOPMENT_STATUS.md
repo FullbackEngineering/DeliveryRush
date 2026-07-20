@@ -62,11 +62,11 @@ skill): `npm run playtest:modes | :loop | :drive | :free-orders | :police |
 ## Known gaps / next up
 Full detail and priority order in `docs/PROJE_TARAMA_VE_PLAN.md`; headline
 items:
-- **Dead 2D Phaser code is still physically in `src/`** (~28% of the tree,
-  unreachable from `boot.ts`: `main.ts`, `scenes/*`, `gameplay/*`, etc.). The
-  planned fix is to move it into `src/legacy/` and exclude it in `tsconfig`,
-  then drop the now-unused `phaser` dependency. Not done yet — don't edit
-  those files expecting them to run (see `CLAUDE.md`/`AGENTS.md` "Dead code").
+- **Dead 2D Phaser code** (~28% of the tree, unreachable from `boot.ts`:
+  `main.ts`, `scenes/*`, `gameplay/*`, etc.) has been **moved to `src/legacy/`**
+  and excluded from `tsconfig`; the now-unused `phaser` dependency was dropped.
+  Kept as reference only — don't edit anything under `src/legacy/` expecting it
+  to run (see `CLAUDE.md`/`AGENTS.md` "Dead code").
 - **Audio** — the 3D game is completely silent. No WebAudio wiring exists for
   the 3D layer yet; the old `AudioManager` is Phaser-era dead code, kept only
   as a reference for the eventual rebuild.
