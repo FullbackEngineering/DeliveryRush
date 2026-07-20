@@ -151,3 +151,51 @@ risk, ve doğrulama.
 **Lane kuralı:** Sonnet ajanları `boot.ts` / `Balance.ts` / `EventBus.ts`'e
 dokunmaz; entegrasyon Opus'ta. Codex ayrı lane'de (yeni dosya ekler; Market + şehir
 canlandırma + asset export) — `CODEX_WORK_LOG.md`.
+
+---
+
+## İŞ F — SERBEST order akışı düzeltmeleri (kullanıcı, 2026-07-20 · ertelendi)
+
+Kullanıcı oynarken bildirdi; **sonra yapılacak** (kullanıcı "plana koy, sonra
+yaparız" dedi).
+
+### F1 — Her POI'de en az 1 order olmalı  · P1
+**Belirti:** "Bazı noktalardan order alabiliyorum, her noktada en az 1 tane olmalı."
+Stop-to-order paneli yalnız **source** POI'lerde açılıyor (7 source / 5 dest tanımı,
+18 POI'ye rastgele dağılıyor); dest POI'ler (🏠🏢) görsel olarak aynı ama order
+sunmuyor → oyuncu bazı noktalarda liste bulamıyor.
+**Kök neden:** `JobBoard.refresh()` yalnız `p.isSource` POI'lere iş üretiyor;
+`tickStopZone` de yalnız `p.isSource` yakınında paneli açıyor.
+**Uygulama (net):**
+- `refresh()`: `sources` yerine **TÜM** `pois.list` üzerinde dön; her POI'ye
+  `ordersPerPoiMin..Max` iş; hedef = **başka herhangi bir POI** (distinct pick,
+  ör. `all[(idx+1+rng.int(0,len-2))%len]`).
+- `tickStopZone()`: `p.isSource &&` filtresini kaldır → herhangi bir POI'de durunca
+  panel açılır.
+- `ensureSourceAndDestCoverage()`'ı kaldır (artık gereksiz; `if (list.length<2) return`
+  yeterli). `isSource` alanı yalnız görsel/venue flavor olarak kalır.
+- Dosyalar: `systems/JobBoard.ts` (yalnız). Tema notu: ev/ofis de order üretecek —
+  kullanıcı "her nokta çalışsın" istiyor, kabul.
+- Not: bu, W2'de eklenen `ensureSourceAndDestCoverage` (T#4) mantığını geçersiz kılar.
+
+### F2 — Order süresi mesafeyle orantılı + gerçekçi taban  · P1
+**Belirti:** "Süreler çok sıkıntı, uzaklıkla orantılı olmalı; yolun yarısında süre
+bitiyor, yetişemiyorum" (RUSH modunda da hissediliyor).
+**Kök neden (SERBEST):** `Econ.timePerKm = 42 s/km`, `timeMin = 25 s`. 42 s/km ≈
+**24 m/s (86 km/h) ortalama** varsayar — ama şehirde dönüş/trafik/polisle gerçek
+ortalama ~8–12 m/s. 1 km Manhattan teslimat gerçekte ~100 s sürerken 42 s veriliyor
+→ yarı yolda bitiyor.
+**Uygulama (net):**
+- `Balance.Econ.timePerKm`'i gerçekçi şehir ortalamasına çek (~**110–140 s/km**),
+  `timeMin`'i yükselt (25 → ~**45–60 s**). Kural: `timeLimit ≥ (mesafe /
+  gerçekçiOrtHız) × güvenlik(~1.6)`. FREE_CITY mesafeleri ~0.3–1.5 km (Manhattan)
+  olduğu için süreler ~50–210 s bandına oturur.
+- **RUSH tarafını da kontrol et:** kullanıcı "rush modunda da" dedi. RUSH order
+  timer'ı (`world/Orders3D.ts` + `systems/RunState.ts` + `Balance.Run/Scoring`)
+  mesafe-farkında mı, yeterince cömert mi? Değilse aynı kuralı uygula (order
+  süresi ↔ pickup→dropoff mesafesi, yetişilebilir margin ile).
+- Dosyalar: `core/Balance.ts` (Econ + gerekiyorsa Run/Scoring), muhtemelen
+  `world/Orders3D.ts` / `systems/RunState.ts` (RUSH süre hesabı). **Opus lane**
+  (Balance).
+- Gerçek cihaz/feel testi: teslimat başladığında saat, ortalama hızla yetişilecek
+  şekilde ayarlanmalı (oyun-içi tune).

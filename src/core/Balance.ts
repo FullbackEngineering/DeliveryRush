@@ -196,8 +196,8 @@ export const Econ = {
   payPerKm: 55, // coins per km of source→dest distance
   payComboStep: 0.15, // +15% pay per consecutive on-time delivery (streak)
   payComboCap: 2.5, // cap on the streak pay multiplier
-  timePerKm: 42, // seconds of time limit granted per km (tune for feel)
-  timeMin: 25, // floor on a job's time limit
+  timePerKm: 90, // seconds of time limit granted per km (tune for feel)
+  timeMin: 45, // floor on a job's time limit
   // Logarithmic late penalty: grows fast then flattens, never ruinous —
   //   penalty = round(min(penaltyBase, penaltyK * ln(1 + secondsLate))) * (special ? specialPenaltyMul : 1)
   penaltyK: 22,
@@ -246,7 +246,7 @@ export const Decor = {
  */
 export const Police = {
   /** Number of patrol cars roaming FREE_CITY. */
-  count: 3,
+  count: 1,
   /** Cruising speed while patrolling (m/s). */
   patrolSpeed: 9,
   /** Pursuit speed while chasing (m/s ≈ 72 km/h) — below the player's ~97 km/h
