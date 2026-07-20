@@ -1,0 +1,32 @@
+# Dependencies
+/node_modules
+
+# Build output
+/dist
+.vite
+
+# Reference-only upstream framework — it ships with its OWN nested git repo and
+# is a game-agnostic knowledge base, not needed to build or deploy Delivery Rush.
+# (Tracking it would turn it into a broken submodule gitlink.)
+/book-of-game
+
+# Asset-pipeline backups from the model-optimization step
+*.glb.bak
+
+# Deploy tool caches
+/.vercel
+/.netlify
+
+# Local Claude Code settings (machine-specific perms/paths)
+.claude/settings.local.json
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp

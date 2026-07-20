@@ -1,0 +1,33 @@
+# Netlify deploy config — Delivery Rush
+# Static single-page app: Vite 6 + TypeScript + Three.js. No backend, no env vars —
+# all services are mocked client-side and every asset is procedural or bundled at
+# build time. Deploying = "build the static site and serve dist/".
+
+[build]
+  command = "npm run build"   # = tsc --noEmit && vite build (typecheck gate + bundle)
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# SPA fallback. The game boots on "/" and branches only on the ?mode= query string
+# (rush / free / garage / market) — it never uses path-based routing. This 200
+# rewrite is a safety net so any URL serves the app shell instead of a 404.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Vite content-hashes filenames under /assets, so a new build always gets a new
+# name — safe to cache the hashed files hard for a year.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Some CDNs misidentify .glb; force the correct binary glTF MIME type on the
+# bundled 3D models.
+[[headers]]
+  for = "/assets/*.glb"
+  [headers.values]
+    Content-Type = "model/gltf-binary"
