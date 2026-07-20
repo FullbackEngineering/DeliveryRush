@@ -6,12 +6,10 @@ import { Vehicle3D } from '@/world/Vehicle3D';
 import { bus, GameEvent } from '@/core/EventBus';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { loadGLB } from '@/world/ModelLoader';
+import { TrafficSignals, RoadAxis, SignalColor } from '@/world/TrafficSignals';
 import pedPhoneWalkUrl from '@/assets/models/ped_phone_walk.glb?url';
 import pedMale03Url from '@/assets/models/ped_male03.glb?url';
 import trafficPackUrl from '@/assets/models/traffic_pack_lp.glb?url';
-
-type RoadAxis = 'x' | 'z';
-type SignalColor = 'green' | 'amber' | 'red';
 
 interface Car {
   active: boolean;
@@ -57,12 +55,11 @@ export class Traffic3D {
   private trafficModelMeshes: THREE.InstancedMesh[] = [];
   private trafficModelsReady = false;
   private trafficModelStatus = 'loading';
-  private signalTimer = 0;
-  private signalColorZ: SignalColor = 'green';
-  private signalColorX: SignalColor = 'red';
-  private signalHousings: THREE.InstancedMesh;
-  private signalLenses: THREE.InstancedMesh;
-  private signalApproaches: Array<{ axis: RoadAxis; matrix: THREE.Matrix4 }> = [];
+  private signals: TrafficSignals;
+  // True whenever at least one car/traffic-model instance matrix was written
+  // this frame; gates the per-mesh `needsUpdate` flush in `update()` so idle
+  // frames (no active car repositioned) skip the GPU buffer re-upload.
+  private matricesDirty = false;
   private pedestrians: Pedestrian[] = [];
   private pedestrianFallback: THREE.InstancedMesh;
   private pedestrianMeshes: THREE.InstancedMesh[] = [];
@@ -100,9 +97,7 @@ export class Traffic3D {
       new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }),
       n,
     );
-    const signals = this.buildTrafficSignals();
-    this.signalHousings = signals.housings;
-    this.signalLenses = signals.lenses;
+    this.signals = new TrafficSignals(grid);
     const pedestrianCount = Math.min(48, Math.max(24, Math.floor((grid.cols * grid.rows) / 12)));
     const pedBody = new THREE.CylinderGeometry(0.32, 0.38, 1.35, 6);
     pedBody.translate(0, 1.18, 0);
@@ -127,6 +122,9 @@ export class Traffic3D {
       });
       this.bodies.setColorAt(i, this.col.setHex(this.colorSet[i % this.colorSet.length]));
     }
+    // Instance colors are set once here and never change again, so the color
+    // buffer only needs one upload (unlike the per-frame matrix buffer).
+    if (this.bodies.instanceColor) this.bodies.instanceColor.needsUpdate = true;
     const shirtColors = [0x2f80ed, 0xeb5757, 0x27ae60, 0xf2c94c, 0x9b51e0, 0xe0e0e0];
     for (let i = 0; i < pedestrianCount; i++) {
       const axis = this.rng.chance(0.5) ? 'x' : 'z';
@@ -144,11 +142,13 @@ export class Traffic3D {
       });
       this.pedestrianFallback.setColorAt(i, this.col.setHex(shirtColors[i % shirtColors.length]));
     }
+    // Same one-time flush as the vehicle bodies above.
+    if (this.pedestrianFallback.instanceColor) this.pedestrianFallback.instanceColor.needsUpdate = true;
     this.hideAll();
     this.updatePedestrians(0);
     this.group.add(
       this.bodies, this.cabins, this.vehicleLights, this.pedestrianFallback,
-      this.signalHousings, this.signalLenses,
+      this.signals.housings, this.signals.lenses,
     );
     void this.loadPedestrianModels();
     void this.loadTrafficModels();
@@ -161,8 +161,7 @@ export class Traffic3D {
 
   reset(): void {
     for (const c of this.cars) c.active = false;
-    this.signalTimer = 0;
-    this.updateSignals(0);
+    this.signals.reset();
     this.hideAll();
   }
 
@@ -180,8 +179,8 @@ export class Traffic3D {
   } {
     const active = this.cars.filter((car) => car.active);
     return {
-      vertical: this.signalColorZ,
-      horizontal: this.signalColorX,
+      vertical: this.signals.vertical,
+      horizontal: this.signals.horizontal,
       active: active.length,
       stoppedAtRed: active.filter((car) => {
         const stop = this.redLightStop(car);
@@ -204,7 +203,8 @@ export class Traffic3D {
   update(dt: number, vehicle: Vehicle3D, live: boolean): void {
     const px = vehicle.x, pz = vehicle.z;
     let activeCount = 0;
-    this.updateSignals(dt);
+    this.matricesDirty = false;
+    this.signals.update(dt);
 
     for (let i = 0; i < this.cars.length; i++) {
       const car = this.cars[i];
@@ -293,11 +293,18 @@ export class Traffic3D {
       }
     }
 
-    this.bodies.instanceMatrix.needsUpdate = true;
-    this.cabins.instanceMatrix.needsUpdate = true;
-    this.vehicleLights.instanceMatrix.needsUpdate = true;
-    for (const mesh of this.trafficModelMeshes) mesh.instanceMatrix.needsUpdate = true;
-    if (this.bodies.instanceColor) this.bodies.instanceColor.needsUpdate = true;
+    // Skip the GPU buffer re-upload entirely when nothing moved this frame
+    // (e.g. before the pool has spawned any car). Instance colors never
+    // change after construction, so they're flushed once there, not here.
+    if (this.matricesDirty) {
+      if (this.trafficModelsReady) {
+        for (const mesh of this.trafficModelMeshes) mesh.instanceMatrix.needsUpdate = true;
+      } else {
+        this.bodies.instanceMatrix.needsUpdate = true;
+        this.cabins.instanceMatrix.needsUpdate = true;
+      }
+      this.vehicleLights.instanceMatrix.needsUpdate = true;
+    }
     this.updatePedestrians(dt);
   }
 
@@ -355,6 +362,7 @@ export class Traffic3D {
   }
 
   private writeCar(i: number, x: number, z: number, yaw: number): void {
+    this.matricesDirty = true;
     this.q.setFromEuler(this.e.set(0, yaw, 0));
     if (this.trafficModelsReady) {
       this.v.set(x, 0.04, z);
@@ -376,33 +384,8 @@ export class Traffic3D {
     this.vehicleLights.setMatrixAt(i, this.m);
   }
 
-  private signalFor(axis: RoadAxis): SignalColor {
-    return axis === 'z' ? this.signalColorZ : this.signalColorX;
-  }
-
-  private updateSignals(dt: number): void {
-    const green = TrafficRules.greenSeconds;
-    const amber = TrafficRules.amberSeconds;
-    const allRed = TrafficRules.allRedSeconds;
-    const halfCycle = green + amber + allRed;
-    const cycle = halfCycle * 2;
-    this.signalTimer = (this.signalTimer + dt) % cycle;
-    const t = this.signalTimer;
-    let z: SignalColor = 'red';
-    let x: SignalColor = 'red';
-    if (t < green) z = 'green';
-    else if (t < green + amber) z = 'amber';
-    else if (t >= halfCycle && t < halfCycle + green) x = 'green';
-    else if (t >= halfCycle + green && t < halfCycle + green + amber) x = 'amber';
-    if (z !== this.signalColorZ || x !== this.signalColorX) {
-      this.signalColorZ = z;
-      this.signalColorX = x;
-      this.refreshSignalLenses();
-    }
-  }
-
   private redLightStop(car: Car): { position: number; distance: number } | null {
-    const color = this.signalFor(car.axis);
+    const color = this.signals.colorFor(car.axis);
     if (color === 'green') return null;
     const block = this.grid.block;
     const lineCount = car.axis === 'z' ? this.grid.rows : this.grid.cols;
@@ -462,88 +445,8 @@ export class Traffic3D {
     };
   }
 
-  private buildTrafficSignals(): { housings: THREE.InstancedMesh; lenses: THREE.InstancedMesh } {
-    const pole = new THREE.CylinderGeometry(0.11, 0.14, 3.7, 6);
-    pole.translate(0, 1.85, 0);
-    const head = new THREE.BoxGeometry(0.62, 1.55, 0.34);
-    head.translate(0, 3.65, 0);
-    const housingGeometry = mergeGeometries([pole, head], false)!;
-    pole.dispose(); head.dispose();
-
-    const approaches: Array<{ axis: RoadAxis; x: number; z: number; yaw: number }> = [];
-    const block = this.grid.block;
-    for (let c = 1; c < this.grid.cols; c++) {
-      for (let r = 1; r < this.grid.rows; r++) {
-        const ix = c * block;
-        const iz = r * block;
-        const sideX = this.grid.halfAt(c) + 0.9;
-        const sideZ = this.grid.halfAt(r) + 0.9;
-        const stopX = this.grid.halfAt(c) + TrafficRules.stopBuffer;
-        const stopZ = this.grid.halfAt(r) + TrafficRules.stopBuffer;
-        approaches.push(
-          { axis: 'z', x: ix - sideX, z: iz - stopZ, yaw: Math.PI },
-          { axis: 'z', x: ix + sideX, z: iz + stopZ, yaw: 0 },
-          { axis: 'x', x: ix - stopX, z: iz + sideZ, yaw: -Math.PI / 2 },
-          { axis: 'x', x: ix + stopX, z: iz - sideZ, yaw: Math.PI / 2 },
-        );
-      }
-    }
-
-    const housings = new THREE.InstancedMesh(
-      housingGeometry,
-      new THREE.MeshStandardMaterial({ color: 0x27313c, roughness: 0.76, metalness: 0.18 }),
-      approaches.length,
-    );
-    const lensGeometry = new THREE.SphereGeometry(0.19, 8, 6);
-    const lenses = new THREE.InstancedMesh(
-      lensGeometry,
-      new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }),
-      approaches.length * 3,
-    );
-    const base = new THREE.Matrix4();
-    const local = new THREE.Matrix4();
-    const position = new THREE.Vector3();
-    const rotation = new THREE.Quaternion();
-    const euler = new THREE.Euler();
-    const scale = new THREE.Vector3(1, 1, 1);
-    approaches.forEach((approach, index) => {
-      base.compose(position.set(approach.x, 0, approach.z), rotation.setFromEuler(euler.set(0, approach.yaw, 0)), scale);
-      housings.setMatrixAt(index, base);
-      this.signalApproaches.push({ axis: approach.axis, matrix: base.clone() });
-      [4.15, 3.65, 3.15].forEach((y, lens) => {
-        local.makeTranslation(0, y, 0.2);
-        lenses.setMatrixAt(index * 3 + lens, new THREE.Matrix4().multiplyMatrices(base, local));
-      });
-    });
-    housings.instanceMatrix.needsUpdate = true;
-    lenses.instanceMatrix.needsUpdate = true;
-    housings.frustumCulled = false;
-    lenses.frustumCulled = false;
-    this.refreshSignalLenses(lenses);
-    return { housings, lenses };
-  }
-
-  private refreshSignalLenses(target = this.signalLenses): void {
-    if (!target) return;
-    const active = {
-      red: new THREE.Color(0xff334c),
-      amber: new THREE.Color(0xffb020),
-      green: new THREE.Color(0x2ee88b),
-    } as const;
-    const dim = {
-      red: new THREE.Color(0x35131a),
-      amber: new THREE.Color(0x352b16),
-      green: new THREE.Color(0x123522),
-    } as const;
-    const colors: SignalColor[] = ['red', 'amber', 'green'];
-    this.signalApproaches.forEach((approach, signal) => {
-      const shown = this.signalFor(approach.axis);
-      colors.forEach((color, lens) => target.setColorAt(signal * 3 + lens, color === shown ? active[color] : dim[color]));
-    });
-    if (target.instanceColor) target.instanceColor.needsUpdate = true;
-  }
-
   private updatePedestrians(dt: number): void {
+    if (this.pedestrians.length === 0) return; // nothing to (re)pose or flush
     const bodyScale = new THREE.Vector3(1, 1, 1);
     for (let i = 0; i < this.pedestrians.length; i++) {
       const ped = this.pedestrians[i];
@@ -565,11 +468,13 @@ export class Traffic3D {
         this.pedestrianFallback.setMatrixAt(i, this.m);
       }
     }
+    // Pedestrians walk continuously, so the loop above always repositions the
+    // whole set (matrices need flushing every real frame); colors are static
+    // after construction and are flushed once there instead of every frame.
     if (this.pedestrianModelsReady) {
       for (const mesh of this.pedestrianMeshes) mesh.instanceMatrix.needsUpdate = true;
     } else {
       this.pedestrianFallback.instanceMatrix.needsUpdate = true;
-      if (this.pedestrianFallback.instanceColor) this.pedestrianFallback.instanceColor.needsUpdate = true;
     }
   }
 
