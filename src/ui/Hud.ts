@@ -21,6 +21,13 @@ export class Hud {
   private els: Record<string, HTMLElement> = {};
   private handlers: Array<[string, (...a: any[]) => void]> = [];
   private lastSecondShown = -1;
+  // RunTimer/OrderTimer fire every frame while running; cache the last
+  // written value (quantized to 0.1% for the bars) and skip DOM writes that
+  // wouldn't visibly change anything.
+  private lastTimerFrac = -1;
+  private lastTimerLow = false;
+  private lastOrderFrac = -1;
+  private lastOrderUrgentShow = false;
 
   constructor(parent: HTMLElement, private onRetry: () => void, private onMenu?: () => void) {
     injectStyle();
@@ -96,6 +103,10 @@ export class Hud {
     this.hideResults();
     this.els.order.classList.remove('show');
     this.lastSecondShown = -1;
+    this.lastTimerFrac = -1;
+    this.lastTimerLow = false;
+    this.lastOrderFrac = -1;
+    this.lastOrderUrgentShow = false;
   }
 
   private setTimer(seconds: number, fraction: number): void {
@@ -104,9 +115,16 @@ export class Hud {
       this.els.timerVal.textContent = formatTime(seconds);
       this.lastSecondShown = s;
     }
-    this.els.timerFill.style.transform = `scaleX(${Math.max(0, fraction)})`;
+    const frac = Math.round(Math.max(0, fraction) * 1000);
+    if (frac !== this.lastTimerFrac) {
+      this.lastTimerFrac = frac;
+      this.els.timerFill.style.transform = `scaleX(${frac / 1000})`;
+    }
     const low = seconds <= 10;
-    this.els.timer.classList.toggle('low', low);
+    if (low !== this.lastTimerLow) {
+      this.lastTimerLow = low;
+      this.els.timer.classList.toggle('low', low);
+    }
   }
 
   private setOrder(o: Order, pickedUp: boolean): void {
@@ -125,8 +143,16 @@ export class Hud {
   }
 
   private setOrderTimer(fraction: number): void {
-    this.els.orderFill.style.transform = `scaleX(${Math.max(0, fraction)})`;
-    this.els.urgent.classList.toggle('show', fraction <= 0.34);
+    const frac = Math.round(Math.max(0, fraction) * 1000);
+    if (frac !== this.lastOrderFrac) {
+      this.lastOrderFrac = frac;
+      this.els.orderFill.style.transform = `scaleX(${frac / 1000})`;
+    }
+    const show = fraction <= 0.34;
+    if (show !== this.lastOrderUrgentShow) {
+      this.lastOrderUrgentShow = show;
+      this.els.urgent.classList.toggle('show', show);
+    }
   }
 
   private setCombo(streak: number, mult: number): void {
