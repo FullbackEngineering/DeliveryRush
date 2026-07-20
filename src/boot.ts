@@ -184,7 +184,7 @@ function startFree(): void {
   const traffic = new Traffic3D(grid, rng);
   scene.add(traffic.group);
   // Patrol police: speeding past one (or crashing beside one) → fine + short chase.
-  const police = new Police(grid, rng, copTemplate);
+  const police = new Police(grid, rng, copTemplate, traffic.signals);
   scene.add(police.group);
   const chase = new ChaseCamera(game.camera);
 

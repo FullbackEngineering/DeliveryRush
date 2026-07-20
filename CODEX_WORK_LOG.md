@@ -150,6 +150,52 @@ Yeni dosyalar:
 
 ---
 
+# Polis devriye AI trafik kurallari duzeltmesi — 20 Temmuz 2026
+
+## Kok neden ve uygulama
+
+- Eski polis devriyesi iki boyutlu rastgele waypoint seciyor, hedefe capraz donuyor ve
+  yol koridoru cozumleyicisine carpinca yol icinde duzensizce savruluyordu.
+- Waypoint devriyesi kaldirildi. Polisler artik normal trafik araclariyla ayni yol
+  modeliyle ilerliyor: sabit yol ekseni, yonune gore sag serit merkezi ve kardinal
+  arac acisi.
+- Devriye polisi trafik sistemiyle ayni `TrafficSignals` nesnesini kullaniyor;
+  kirmizi/isik fazinda stop cizgisine frenleyerek duruyor.
+- Polisler ayni seritteki diger devriye aracina takip mesafesi birakiyor ve oyuncu
+  seridi kapatiyorsa normal trafik gibi carpmadan once duruyor.
+- Kovalamaca davranisi korunuyor. Kovalamaca bittiginde polis en yakin yasal sag
+  seride yumusakca hizalaniyor ve duz devriyeye geri donuyor.
+- `Traffic3D.signals` salt-okunur ortak denetleyici olarak acildi; `boot.ts` bu nesneyi
+  polise iletiyor. Trafik playtest'i yeni `TrafficSignals` sahipligine gore guncellendi.
+
+## Dogrulama
+
+- `node tools/playtest/police.mjs`: PASS.
+  - Devriye polisi: `3`; sag serit ihlali: `0`; kardinal yon ihlali: `0`.
+  - 1.4 saniyelik hareket orneginde uc polisin yanal sapmasi da `0 m`.
+  - Ceza, kovalamaca banner'i ve kacis dongusu PASS; konsol hatasi yok.
+- `npm run playtest:traffic`: PASS.
+  - 676 sinyal yaklasimi, sag serit ihlali `0`, kirmizida durma ve oyuncuya yol
+    verme testleri PASS.
+- `npm run playtest:modes`: PASS; RUSH ve SERBEST 80/80 yol ornegi gecerli.
+- `npm run typecheck`: PASS.
+- `npm run build`: PASS.
+- 390x844 `police-patrol.png` ve `police-chase.png` ekran goruntuleri olusturuldu;
+  devriye sahnesi gozle incelendi.
+
+## Guncellenen dosyalar
+
+- `src/world/Police.ts`
+- `src/world/Traffic3D.ts`
+- `src/boot.ts`
+- `tools/playtest/police.mjs`
+- `tools/playtest/traffic-rules.mjs`
+- `tools/playtest/shots/police-patrol.png`
+- `tools/playtest/shots/police-chase.png`
+- `CODEX_WORK_LOG.md`
+
+---
+
 # RUSH + SERBEST birebir canlı dünya haritası — 21 Temmuz 2026
 
 ## Durum
