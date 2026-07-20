@@ -154,15 +154,14 @@ Yeni dosyalar:
 
 ## Durum
 
-**Bağımsız modül tamamlandı, entegrasyon şeridine hazır.** Mevcut sembolik mini harita
-yerine oyunla aynı Three.js sahnesini ortografik kamerayla tepeden gösteren
-`WorldMap` bileşeni oluşturuldu. Repo şerit kuralı gereği `boot.ts` ve mevcut HUD
-dosyalarına wiring yapılmadı.
+**Tamamlandı ve iki moda entegre edildi.** Mevcut sembolik mini harita yerine oyunla
+aynı Three.js sahnesini ortografik kamerayla tepeden gösteren `WorldMap` bileşeni
+RUSH ve SERBEST çalışma döngülerine bağlandı.
 
 ## Yapılanlar
 
-- RUSH'ın `840×840 m` kompakt şehri ve SERBEST'in `1728×1728 m` açık dünyası aynı
-  bileşen tarafından otomatik olarak bütüne sığdırılıyor.
+- Harita dairesel ve oyuncu merkezli çalışıyor. RUSH oyuncunun `220 m`, SERBEST
+  `320 m` yarıçapındaki çevresini gösteriyor; böylece yol/bina ayrıntıları okunuyor.
 - Harita yol şeması tahmin etmiyor; aktif sahne ağacını render ettiği için yollar,
   avenue genişlikleri, gerçek bina yerleşimleri, parklar, dekor GLB'leri, POI yapıları,
   trafik, polis, trafik ışıkları, araçlar ve beacon'lar dünyayla birebir eşleşiyor.
@@ -170,8 +169,8 @@ dosyalarına wiring yapılmadı.
   trafik marker tiplerini destekleyen hafif bir Canvas overlay eklendi.
 - Dünya koordinatı → harita koordinatı dönüşümü iki modun gerçek `Grid.worldW/worldD`
   ölçülerini kullanıyor; kuzey/world `-Z` ekranın üstünde kalıyor.
-- Varsayılan yenileme 10 Hz, çözünürlük 136 CSS px ve DPR en fazla 1.5. Harita
-  renderer'ında antialias ile gölgeler kapalı.
+- Pahalı 3D dünya katmanı `0.5 Hz`, ucuz oyuncu/hedef overlay'i `12 Hz` yenileniyor.
+  Çözünürlük 136 CSS px, DPR en fazla 1.5; antialias ile gölgeler kapalı.
 - `destroy()` ile WebGL renderer/context ve DOM öğesi temizlenebiliyor.
 - RUSH hedefi ve SERBEST POI/aktif iş hedefi için wiring örnekleri
   `docs/WORLD_MAP_INTEGRATION.md` içine yazıldı.
@@ -181,7 +180,8 @@ dosyalarına wiring yapılmadı.
 - `node tools/playtest/world-map.mjs`: PASS.
   - RUSH: 14×14 grid, 840×840 m, tek dünya canvas + tek overlay canvas.
   - SERBEST: 24×24 grid, 1728×1728 m, tek dünya canvas + tek overlay canvas.
-  - Her iki modda 150 px test ölçüsü doğru ve konsol hatası yok.
+  - Her iki modda tek entegre harita, dairesel maske, oyuncuyu takip eden kamera ve
+    konsol hatası olmaması doğrulandı.
 - 390×844 `world-map-rush.png` ve `world-map-free.png` gözle incelendi. Yol/blok
   geometrileri gerçek şehir yerleşimiyle aynı, tepeden yön doğru ve marker görünür.
 - `npm run typecheck`: PASS.
@@ -194,19 +194,13 @@ dosyalarına wiring yapılmadı.
 - `tools/playtest/world-map.mjs`
 - `docs/WORLD_MAP_INTEGRATION.md`
 
-## Dokunulmayan entegrasyon yüzeyi
+## Entegrasyon
 
-- `src/boot.ts`
-- `src/core/Balance.ts`
-- `src/core/EventBus.ts`
-- mevcut `src/ui/Hud.ts` ve `src/ui/FreeHud.ts`
-- araç, kamera ve GLB model dosyaları
-
-## Entegrasyon devri
-
-Entegrasyon şeridi her modda bir map host oluşturup `new WorldMap(...)` kurmalı ve
-ilgili `game.onUpdate((dt) => map.update(dt))` çağrısını eklemelidir. Tam örnekler
-`docs/WORLD_MAP_INTEGRATION.md` içindedir.
+- `src/boot.ts`: RUSH ve SERBEST snapshot/wiring eklendi.
+- `src/ui/FreeHud.templates.ts`: SERBEST harita yuvası dairesel yapıldı; eski
+  sembolik canvas runtime'da gerçek `WorldMap` ile değiştiriliyor.
+- RUSH haritası sipariş kartının altında sağ üstte sabitleniyor.
+- `Balance.ts`, `EventBus.ts`, araç, kamera ve GLB dosyaları değiştirilmedi.
 
 ---
 

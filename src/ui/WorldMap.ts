@@ -26,8 +26,15 @@ export interface WorldMapOptions {
   /** Dynamic semantic overlay. The 3D scene itself is always rendered exactly. */
   getSnapshot?: () => WorldMapSnapshot;
   size?: number;
-  updateHz?: number;
+  /** Expensive exact-scene refresh. The city is static, so 1 Hz is sufficient. */
+  worldUpdateHz?: number;
+  /** Cheap player/target overlay refresh. */
+  overlayUpdateHz?: number;
   ariaLabel?: string;
+  /** `embedded` fills an existing HUD slot; `rush` uses the built-in fixed placement. */
+  placement?: 'embedded' | 'rush';
+  /** Player-centred visible radius in world metres. */
+  viewRadiusM?: number;
 }
 
 /**
@@ -49,8 +56,10 @@ export class WorldMap {
   private readonly overlay: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D;
   private readonly observer: ResizeObserver | null;
-  private readonly interval: number;
-  private elapsed = Infinity;
+  private readonly worldInterval: number;
+  private readonly overlayInterval: number;
+  private worldElapsed = 0;
+  private overlayElapsed = 0;
   private cssSize: number;
   private mapTime = 0;
   private destroyed = false;
@@ -58,11 +67,18 @@ export class WorldMap {
   constructor(private readonly options: WorldMapOptions) {
     injectStyle();
     this.cssSize = options.size ?? 136;
-    this.interval = 1 / Math.max(1, options.updateHz ?? 10);
+    this.worldInterval = 1 / Math.max(0.2, options.worldUpdateHz ?? 1);
+    this.overlayInterval = 1 / Math.max(1, options.overlayUpdateHz ?? 12);
+    this.worldElapsed = this.worldInterval;
+    this.overlayElapsed = this.overlayInterval;
 
     this.element = document.createElement('div');
     this.element.className = 'dr-world-map';
-    this.element.style.setProperty('--dr-map-size', `${this.cssSize}px`);
+    if (options.placement) this.element.classList.add(`dr-world-map--${options.placement}`);
+    this.element.style.setProperty(
+      '--dr-map-size',
+      options.placement === 'rush' ? 'clamp(104px,28vw,136px)' : `${this.cssSize}px`,
+    );
     this.element.setAttribute('role', 'img');
     this.element.setAttribute('aria-label', options.ariaLabel ?? 'Şehrin canlı haritası');
 
@@ -83,7 +99,7 @@ export class WorldMap {
 
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 5000);
     this.camera.up.set(0, 0, -1); // north / world -Z stays at the top
-    this.fitWholeWorld();
+    this.fitLocalView();
     this.syncBackingSize();
 
     this.observer = typeof ResizeObserver === 'undefined'
@@ -96,16 +112,29 @@ export class WorldMap {
   update(dt: number): void {
     if (this.destroyed) return;
     this.mapTime += Math.max(0, dt);
-    this.elapsed += Math.max(0, dt);
-    if (this.elapsed < this.interval) return;
-    this.elapsed %= this.interval;
-    this.render();
+    const safeDt = Math.max(0, dt);
+    this.worldElapsed += safeDt;
+    this.overlayElapsed += safeDt;
+    if (this.worldElapsed >= this.worldInterval) {
+      this.worldElapsed = 0;
+      this.renderWorld();
+    }
+    if (this.overlayElapsed >= this.overlayInterval) {
+      this.overlayElapsed = 0;
+      this.drawOverlay();
+    }
   }
 
   /** Force an immediate map refresh (useful after async decor/models arrive). */
   render(): void {
     if (this.destroyed || !this.element.isConnected) return;
-    this.fitWholeWorld();
+    this.renderWorld();
+    this.drawOverlay();
+  }
+
+  private renderWorld(): void {
+    if (this.destroyed || !this.element.isConnected) return;
+    this.fitLocalView();
 
     // Fog tuned for the chase camera would wash out a camera hundreds of metres
     // above the city. Temporarily remove it only for this renderer/pass.
@@ -116,7 +145,6 @@ export class WorldMap {
     } finally {
       this.options.scene.fog = fog;
     }
-    this.drawOverlay();
   }
 
   destroy(): void {
@@ -127,19 +155,18 @@ export class WorldMap {
     this.element.remove();
   }
 
-  private fitWholeWorld(): void {
+  private fitLocalView(): void {
     const { grid } = this.options;
-    const padding = Math.max(grid.block * 0.12, 8);
-    const span = Math.max(grid.worldW, grid.worldD) + padding * 2;
-    const half = span * 0.5;
-    this.camera.left = -half;
-    this.camera.right = half;
-    this.camera.top = half;
-    this.camera.bottom = -half;
+    const radius = this.viewRadius();
+    const center = this.viewCenter();
+    this.camera.left = -radius;
+    this.camera.right = radius;
+    this.camera.top = radius;
+    this.camera.bottom = -radius;
     this.camera.near = 0.1;
     this.camera.far = Math.max(5000, grid.buildMaxH + 2000);
-    this.camera.position.set(grid.worldW * 0.5, grid.buildMaxH + 1000, grid.worldD * 0.5);
-    this.camera.lookAt(grid.worldW * 0.5, 0, grid.worldD * 0.5);
+    this.camera.position.set(center.x, grid.buildMaxH + 1000, center.z);
+    this.camera.lookAt(center.x, 0, center.z);
     this.camera.updateProjectionMatrix();
   }
 
@@ -154,19 +181,27 @@ export class WorldMap {
     this.overlay.style.width = `${this.cssSize}px`;
     this.overlay.style.height = `${this.cssSize}px`;
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    this.elapsed = Infinity;
+    this.worldElapsed = this.worldInterval;
+    this.overlayElapsed = this.overlayInterval;
   }
 
   private worldToMap(x: number, z: number): { x: number; y: number } {
-    const { grid } = this.options;
-    const padding = Math.max(grid.block * 0.12, 8);
-    const span = Math.max(grid.worldW, grid.worldD) + padding * 2;
-    const offsetX = (span - grid.worldW) * 0.5;
-    const offsetZ = (span - grid.worldD) * 0.5;
+    const center = this.viewCenter();
+    const radius = this.viewRadius();
+    const span = radius * 2;
     return {
-      x: ((x + offsetX) / span) * this.cssSize,
-      y: ((z + offsetZ) / span) * this.cssSize,
+      x: ((x - center.x + radius) / span) * this.cssSize,
+      y: ((z - center.z + radius) / span) * this.cssSize,
     };
+  }
+
+  private viewCenter(): { x: number; z: number } {
+    const player = this.options.getSnapshot?.().player;
+    return player ?? { x: this.options.grid.centerX, z: this.options.grid.centerZ };
+  }
+
+  private viewRadius(): number {
+    return Math.max(40, this.options.viewRadiusM ?? Math.min(this.options.grid.worldW, this.options.grid.worldD) * 0.22);
   }
 
   private drawOverlay(): void {
@@ -193,6 +228,19 @@ export class WorldMap {
 
     for (const marker of snapshot.markers ?? []) this.drawMarker(marker);
     this.drawMarker({ ...snapshot.player, kind: 'player' });
+
+    // Compact scale reference: the line represents one quarter of the visible diameter.
+    const scaleM = Math.round(this.viewRadius() / 2 / 10) * 10;
+    const scalePx = size * 0.25;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,.9)';
+    ctx.fillStyle = 'rgba(255,255,255,.9)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(10, size - 12); ctx.lineTo(10 + scalePx, size - 12); ctx.stroke();
+    ctx.font = '700 8px system-ui,sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`${scaleM} m`, 10, size - 16);
+    ctx.restore();
   }
 
   private drawMarker(marker: WorldMapMarker): void {
@@ -256,13 +304,16 @@ function injectStyle(): void {
   const style = document.createElement('style');
   style.textContent = `
     .dr-world-map { --dr-map-size: 136px; position: relative; box-sizing: border-box; width: var(--dr-map-size);
-      height: var(--dr-map-size); overflow: hidden; border-radius: 20px;
+      height: var(--dr-map-size); overflow: hidden; border-radius: 50%;
       background: #202a36; border: 2px solid rgba(190,210,235,.34);
       box-shadow: 0 8px 24px rgba(0,0,0,.42), inset 0 0 0 1px rgba(255,255,255,.05);
       pointer-events: none; contain: strict; }
     .dr-world-map__world, .dr-world-map__overlay { position: absolute; inset: 0;
       display: block; width: 100%; height: 100%; pointer-events: none; }
     .dr-world-map__overlay { z-index: 1; }
+    .dr-world-map--embedded { width: 100%; height: 100%; border: 0; border-radius: 50%; }
+    .dr-world-map--rush { position: fixed; right: 12px;
+      top: calc(env(safe-area-inset-top,0px) + 160px); z-index: 5; }
   `;
   document.head.appendChild(style);
 }

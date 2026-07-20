@@ -23,7 +23,9 @@ const map = new WorldMap({
   scene,
   grid,
   size: 136,
-  updateHz: 10,
+  viewRadiusM: 220,
+  worldUpdateHz: 0.5,
+  overlayUpdateHz: 12,
   getSnapshot: () => ({
     player: {
       x: vehicle.x,
@@ -39,6 +41,11 @@ game.onUpdate((dt) => map.update(dt));
 
 `mapHost`, HUD içinde haritanın bulunacağı kapsayıcıdır. `WorldMap` kendi öğesini bu
 kapsayıcıya ekler; global konumlandırma dayatmaz.
+
+Harita oyuncuyu merkezde takip eden dairesel bir yerel görünüm kullanır. Bu oyunun
+SERBEST dünyası yalnız yaklaşık 1.7 km genişliğinde olduğu için gerçek 5 km yarıçap
+şehrin tamamını gösterirdi. Entegrasyonda RUSH için `220 m`, SERBEST için `320 m`
+yarıçap kullanılır; ihtiyaç halinde `viewRadiusM` değiştirilebilir.
 
 ## RUSH hedef katmanı
 
@@ -87,11 +94,13 @@ getSnapshot: () => {
 
 ## Performans sınırları
 
-- Varsayılan yenileme: `10 Hz`; ana oyun 60 FPS akışından bağımsız olarak throttle edilir.
+- Entegrasyonda pahalı birebir 3D şehir render'ı `0.5 Hz`; ucuz oyuncu/hedef overlay'i
+  `12 Hz` yenilenir. Böylece oyuncu oku akıcı kalırken ikinci WebGL renderer ana oyun
+  döngüsünü boğmaz.
 - Harita varsayılanı `136×136 CSS px`; DPR en fazla `1.5` olur.
 - Harita renderer'ında antialias ve gölgeler kapalıdır.
 - Modül yeni bir WebGL context kullanır. Entegrasyon sonrası hedef telefonlarda GPU bellek
-  ve FPS tekrar ölçülmelidir; düşük cihaz profili gerekirse `updateHz: 6` kullanılabilir.
+  ve FPS tekrar ölçülmelidir; gerekirse `worldUpdateHz: 0.5` kullanılabilir.
 - Mod değişimi ileride sayfa yenilemeden yapılırsa `map.destroy()` çağrılmalıdır.
 
 ## Şerit sınırı

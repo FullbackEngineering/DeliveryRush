@@ -121,7 +121,7 @@ export function injectFreeHudStyle(): void {
       box-shadow: 0 4px 14px rgba(0,0,0,0.3); -webkit-tap-highlight-color: transparent; }
     .dr-free-jobs-btn:active, .dr-free-menu:active { transform: translateY(2px); }
 
-    .dr-free-map-wrap { width: clamp(96px, 28vw, 128px); height: clamp(96px, 28vw, 128px); border-radius: 18px;
+    .dr-free-map-wrap { width: clamp(96px, 28vw, 128px); height: clamp(96px, 28vw, 128px); border-radius: 50%;
       overflow: hidden; margin-top: 2px;
       background: rgba(13,19,31,0.72); border: 1px solid rgba(120,150,200,0.22); box-shadow: 0 4px 14px rgba(0,0,0,0.3); }
     .dr-free-map { display: block; width: 100%; height: 100%; }
