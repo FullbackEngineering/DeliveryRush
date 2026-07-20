@@ -120,8 +120,9 @@ function startRush(): void {
     grid,
     placement: 'rush',
     viewRadiusM: 220,
-    worldUpdateHz: 0.5,
-    overlayUpdateHz: 12,
+    worldUpdateHz: 0,
+    overlayUpdateHz: 15,
+    getCenter: () => ({ x: vehicle.x, z: vehicle.z }),
     getSnapshot: () => {
       const order = orders.current;
       const node = order ? (order.pickedUp ? order.dropoff : order.pickup) : null;
@@ -209,8 +210,9 @@ function startFree(): void {
     grid,
     placement: 'embedded',
     viewRadiusM: 320,
-    worldUpdateHz: 0.5,
-    overlayUpdateHz: 12,
+    worldUpdateHz: 0,
+    overlayUpdateHz: 15,
+    getCenter: () => ({ x: vehicle.x, z: vehicle.z }),
     getSnapshot: () => {
       const job = board.active;
       const target = job ? (job.state === 'toPickup' ? job.source : job.dest) : null;

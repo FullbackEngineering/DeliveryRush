@@ -577,3 +577,46 @@ araç varyantıyla değiştirildi.
 - `tools/playtest/mobile-controls.mjs`
 - `package.json`
 - `CODEX_WORK_LOG.md`
+
+---
+
+# Canli harita akicilik optimizasyonu — 20 Temmuz 2026
+
+## Kok neden ve yeni yontem
+
+- Eski harita aktif Three.js sahnesini ayri bir WebGL renderer ile iki saniyede bir
+  yeniden ciziyordu. Bu seyrek ama agir tam-sahne render'i mobilde kare suresi
+  sicrama/takilmasi olusturuyordu.
+- Sehir statik oldugu icin ustten gorunumu acilista bir kez yuksek cozumlu bir cache
+  canvas'ina aliniyor. Dairesel harita artik bu goruntuden oyuncunun cevresindeki
+  parcayi kirpip gosteriyor; surus sirasinda ikinci WebGL render'i calismiyor.
+- Harita merkezi ucuz canvas kirpmasiyla 30 Hz yenileniyor ve oyuncuya exponential
+  smoothing ile yaklasiyor. Isaret/POI snapshot'i 15 Hz yenileniyor.
+- Onceki kod her marker koordinatinda `getSnapshot()` fonksiyonunu tekrar cagiriyordu.
+  Snapshot artik yenileme basina yalniz bir kez uretilip tum marker'lar tarafindan
+  paylasiliyor.
+- Dairesel gorunum, RUSH 220 m ve SERBEST 320 m yerel gorus alanlari korundu.
+
+## Dogrulama
+
+- `node tools/playtest/world-map.mjs`: RUSH ve SERBEST PASS.
+  - 2.2 saniyelik surus orneginde harita kaynak WebGL render sayisi iki modda da `0`.
+  - Oyuncu takibi, dairesel maske, tek harita canvas'i ve HUD entegrasyonu PASS.
+- `npm run playtest:modes`: PASS; RUSH ve SERBEST yol ornekleri 80/80 gecerli.
+- `npm run playtest:mobile-controls`: RUSH ve SERBEST PASS; tum dokunmatik kontroller
+  calisiyor. Headless test, geri sayim throttling'inden etkilenmemesi icin canli run'i
+  dogrudan baslatacak sekilde saglamlastirildi.
+- `npm run typecheck`: PASS.
+- `npm run build`: PASS.
+- 390x844 `world-map-rush.png`, `world-map-free.png` ve mobil kontrol goruntuleri
+  gozle incelendi; harita okunabilir ve dogru merkezli.
+
+## Guncellenen dosyalar
+
+- `src/ui/WorldMap.ts`
+- `src/boot.ts`
+- `tools/playtest/world-map.mjs`
+- `tools/playtest/mobile-controls.mjs`
+- `tools/playtest/shots/world-map-rush.png`
+- `tools/playtest/shots/world-map-free.png`
+- `CODEX_WORK_LOG.md`

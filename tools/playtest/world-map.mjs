@@ -48,14 +48,39 @@ async function testMode(mode) {
       circular: getComputedStyle(root).borderRadius === '50%',
     };
   });
+  const performance = await page.evaluate(async () => {
+    const t = window.__three;
+    const map = t.worldMap;
+    let sourceRenders = 0;
+    let snapshotCalls = 0;
+    const originalRender = map.renderer.render.bind(map.renderer);
+    const originalSnapshot = map.options.getSnapshot;
+    map.renderer.render = (...args) => { sourceRenders++; return originalRender(...args); };
+    map.options.getSnapshot = () => { snapshotCalls++; return originalSnapshot(); };
+    const start = { x: t.vehicle.x, z: t.vehicle.z };
+    t.vehicle.speedMultiplier = 2.5;
+    t.vehicle.setThrottle(true);
+    await new Promise((resolve) => setTimeout(resolve, 2200));
+    t.vehicle.setThrottle(false);
+    map.renderer.render = originalRender;
+    map.options.getSnapshot = originalSnapshot;
+    return {
+      sourceRenders,
+      snapshotCalls,
+      moved: Math.hypot(t.vehicle.x - start.x, t.vehicle.z - start.z),
+      fps: t.fps,
+    };
+  });
   await sleep(400);
   await page.screenshot({ path: `${SHOT_DIR}/world-map-${mode}.png` });
   const integrated = mode === 'rush' ? created.integratedRush : created.integratedFree && !created.legacyFreeCanvas;
   const ok = created.mapCount === 1 && created.webglCanvases === 1 && created.overlayCanvases === 1
     && created.cols > 0 && created.rows > 0 && created.size >= 95 && created.size <= 140
     && created.viewFollowsPlayer && created.circular && integrated
+    && performance.sourceRenders === 0 && performance.snapshotCalls <= 40
     && errors.length === 0;
   console.log(`MODE=${mode.toUpperCase()} ${ok ? 'PASS' : 'FAIL'} ${JSON.stringify(created)}`);
+  console.log(`  performance ${JSON.stringify(performance)}`);
   console.log('  errors', errors.length ? errors.join(' | ') : '(none)');
   await page.close();
   return ok;
