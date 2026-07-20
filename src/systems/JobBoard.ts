@@ -59,6 +59,7 @@ export class JobBoard {
   /** Roll a fresh slate of `Econ.ordersPerPoiMin..Max` jobs per source POI.
    * Leaves `active` untouched — offers and the active job are independent. */
   refresh(): void {
+    this.ensureSourceAndDestCoverage();
     const sources = this.pois.list.filter((p) => p.isSource);
     const dests = this.pois.list.filter((p) => !p.isSource);
     if (!sources.length || !dests.length) return;
@@ -96,6 +97,23 @@ export class JobBoard {
 
     this.offered = jobs;
     bus.emit(GameEvent.JobsRefreshed, this.offered);
+  }
+
+  /** Guarantee at least one source POI and one dest POI exist so a job can
+   * always be formed. `Pois.place` rolls each POI's role independently from
+   * `POI_DEFS`, so — vanishingly rarely — every spawned POI could land on the
+   * same role, leaving `refresh()` unable to pair a source with a dest. Rather
+   * than special-case that in the job-building loop, coerce one POI to the
+   * missing role; it's a shared object (`this.pois.list`), so the flip also
+   * fixes the stop-to-order zone (`tickStopZone`) and any other POI-role
+   * lookups for the rest of the session. */
+  private ensureSourceAndDestCoverage(): void {
+    const list = this.pois.list;
+    if (list.length < 2) return; // fewer than 2 POIs: no pairing is possible regardless
+    const hasSource = list.some((p) => p.isSource);
+    const hasDest = list.some((p) => !p.isSource);
+    if (hasSource && hasDest) return;
+    this.rng.pick(list).isSource = !hasSource;
   }
 
   /** Accept an offered job as the single active job. Ignored if one's already active. */
