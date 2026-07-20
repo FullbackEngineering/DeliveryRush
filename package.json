@@ -21,7 +21,6 @@
     "playtest:traffic": "node tools/playtest/traffic-rules.mjs"
   },
   "dependencies": {
-    "phaser": "^3.90.0",
     "three": "^0.171.0"
   },
   "devDependencies": {

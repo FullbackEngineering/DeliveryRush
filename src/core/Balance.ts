@@ -1,57 +1,11 @@
 /**
  * Single source of truth for gameplay tuning. Keeping every "magic number" here
  * makes the game data-driven and easy to balance without touching logic.
+ *
+ * Active = 3D game blocks; the old 2D-Phaser blocks (City/Vehicle/Camera/
+ * Design/Juice…) were removed on cleanup. `Difficulty` looks like one of
+ * those but is still live (used by systems/RunState.ts) — kept.
  */
-
-export const Design = {
-  width: 720,
-  height: 1280,
-} as const;
-
-export const City = {
-  /** Distance between adjacent intersections (world px). */
-  block: 360,
-  /** Drivable road width. */
-  roadWidth: 132,
-  /** Half-lane offset from centerline (right-hand driving). */
-  laneOffset: 30,
-  /** Grid size (intersections). Large enough for 30–90s sessions. */
-  cols: 16,
-  rows: 16,
-} as const;
-
-export const Vehicle = {
-  /** Distance from an intersection center at which a buffered turn commits. */
-  turnCommitDist: 26,
-  /**
-   * Seconds an input stays buffered waiting for the next intersection. Must
-   * exceed one block of travel time so a steer set just after an intersection
-   * still survives to the next: the starter car (240px/s over 360px blocks)
-   * needs 1.5s, so 2.0s gives comfortable margin. The buffer is always consumed
-   * at the next intersection, so a longer window only helps.
-   */
-  inputBufferTime: 2.0,
-  /** Speed→displayed km/h factor. */
-  kmhFactor: 0.5,
-  /** Crash slowdown factor and recovery. */
-  crashSlowdown: 0.35,
-  crashRecover: 1.6, // per second lerp back to 1
-
-  // --- Throttle model (hold ▲ = accelerate, release = coast/brake) ----------
-  /**
-   * Off-throttle cruise as a fraction of max speed. The car slows to this when
-   * the gas is released (never fully stops, so the courier run keeps flowing).
-   */
-  idleSpeedFactor: 0.32,
-  /**
-   * Curved (exponential) speed approach: each frame speed damps toward the
-   * throttle target at `lambda = stat / damp`. Lower damp = snappier. Braking
-   * is intentionally snappier than acceleration (arcade feel — lets you brake to
-   * dodge traffic and slow for corners). See earok.net "Simplified acceleration".
-   */
-  accelDamp: 100, // accel lambda = stats.acceleration / accelDamp  (starter ≈ 5.2)
-  brakeDamp: 62, // decel lambda = stats.braking / brakeDamp        (starter ≈ 10.3)
-} as const;
 
 export const Run = {
   /** Starting run clock (seconds). */
@@ -102,20 +56,6 @@ export const Difficulty = {
   /** VIP order chance grows with difficulty. */
   vipChanceStart: 0.08,
   vipChanceMax: 0.3,
-} as const;
-
-export const Camera = {
-  /** Follow smoothing (Phaser lerp per frame; higher = tighter). */
-  followLerp: 0.14,
-  /** Look-ahead offset in px = leadBase + leadSpeed * normalizedSpeed. */
-  leadBase: 80,
-  leadSpeed: 170,
-  /** Zoom = zoomBase - zoomSpeed * normalizedSpeed (zoom out at speed → shows
-   * more road ahead + adds a sense of speed). */
-  zoomBase: 1.0,
-  zoomSpeed: 0.16,
-  /** Per-frame lerp for the zoom change (kept slow so it breathes, not pops). */
-  zoomLerp: 0.05,
 } as const;
 
 /**
@@ -175,13 +115,6 @@ export const TrafficRules = {
   playerLookAhead: 42,
   playerStopGap: 2.2,
   playerSafetyMargin: 0.7,
-} as const;
-
-export const Juice = {
-  shakeSmall: 0.004,
-  shakeMed: 0.009,
-  shakeBig: 0.016,
-  hitStopMs: 60,
 } as const;
 
 /**
