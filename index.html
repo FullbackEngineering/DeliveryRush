@@ -48,12 +48,16 @@
         z-index: 5;
         pointer-events: none;
       }
-      /* Overlay roots are click-through by default. Interactive screens/controls
-         opt in explicitly; otherwise a transparent full-screen HUD can swallow
-         every mobile touch before it reaches the driving controls. */
-      #ui > * {
-        pointer-events: none;
-      }
+      /* Each overlay owns its OWN root pointer-events. Click-through HUD layers
+         (.dr-hud / .dr-free / .dr-drive) set `none` on their root and opt their
+         buttons back in with `auto`; full-screen interactive screens
+         (.dr-modes / .dr-market / .dr-garage) set `auto`. Because `#ui` itself is
+         `pointer-events: none`, any child that sets nothing inherits none and is
+         click-through — so no blanket rule is needed here.
+         DO NOT re-add a `#ui > * { pointer-events: … }` rule: its ID-level
+         specificity (1,0,0) beats the component class rules (0,1,0) and forces
+         EVERY overlay to one value — which made the whole mode-select/market/
+         garage screens un-tappable. */
       #fps {
         position: fixed;
         top: env(safe-area-inset-top, 6px);
