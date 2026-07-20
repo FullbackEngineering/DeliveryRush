@@ -21,6 +21,9 @@ export class DriveControls {
   private readonly onKeyDown: (e: KeyboardEvent) => void;
   private readonly onKeyUp: (e: KeyboardEvent) => void;
   private keyAxis = 0;
+  /** Force-release every hold control when focus is lost (see constructor). */
+  private readonly onBlur: () => void;
+  private readonly onVisibility: () => void;
 
   constructor(parent: HTMLElement) {
     injectStyle();
@@ -97,6 +100,7 @@ export class DriveControls {
     pedal.addEventListener('pointerdown', gasDown);
     pedal.addEventListener('pointerup', gasUp);
     pedal.addEventListener('pointercancel', gasUp);
+    pedal.addEventListener('lostpointercapture', gasUp); // safety: capture yanked → release gas
 
     // --- Reverse: hold to back up --------------------------------------------
     let reversePointer = -1;
@@ -118,6 +122,7 @@ export class DriveControls {
     reverse.addEventListener('pointerdown', reverseDown);
     reverse.addEventListener('pointerup', reverseUp);
     reverse.addEventListener('pointercancel', reverseUp);
+    reverse.addEventListener('lostpointercapture', reverseUp); // safety: capture yanked → release
 
     // --- Keyboard (desktop) --------------------------------------------------
     this.onKeyDown = (e) => {
@@ -134,6 +139,30 @@ export class DriveControls {
     };
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
+
+    // --- Safety: force every hold-control OFF when focus is lost --------------
+    // A key held (or a captured pointer) whose release event never arrives —
+    // window blur (alt-tab, dev-tools), tab backgrounded, app switch — would
+    // otherwise latch throttle/reverse ON, so the car keeps accelerating with no
+    // input. Emit the "off" facts unconditionally (covers both keyboard, which
+    // never set gasPointer, and pointer holds) and recentre the wheel.
+    const releaseAll = (): void => {
+      gasPointer = -1;
+      reversePointer = -1;
+      pedal.classList.remove('is-down');
+      reverse.classList.remove('is-down');
+      this.dragId = -1;
+      wheel.classList.remove('is-grab');
+      this.keyAxis = 0;
+      bus.emit(GameEvent.ControlThrottle, false);
+      bus.emit(GameEvent.ControlReverse, false);
+      this.setAxis(0, 0); // emits ControlSteerAxis 0 + recentres the wheel face
+    };
+    wheel.addEventListener('lostpointercapture', release);
+    this.onBlur = releaseAll;
+    this.onVisibility = () => { if (document.hidden) releaseAll(); };
+    window.addEventListener('blur', this.onBlur);
+    document.addEventListener('visibilitychange', this.onVisibility);
   }
 
   private setAxis(axis: number, faceDeg: number): void {
@@ -151,6 +180,8 @@ export class DriveControls {
   destroy(): void {
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
+    window.removeEventListener('blur', this.onBlur);
+    document.removeEventListener('visibilitychange', this.onVisibility);
     this.root.remove();
   }
 }
