@@ -28,8 +28,23 @@ export class Game {
     // Cap DPR: retina phones would otherwise render 3× the pixels for no visible gain.
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    // Shadows: PCFSoftShadowMap takes several depth-texture samples per
+    // shadowed fragment (a soft-shadow blur pass) — cheap on desktop/console
+    // GPUs but a real per-frame cost on weak mobile GPUs. Detect "low-end"
+    // with a simple, synchronous heuristic (no WebGL capability probing
+    // needed): a coarse pointer (touchscreen — i.e. a phone/tablet, not a
+    // desktop with a mouse/trackpad) combined with few logical CPU cores
+    // (budget SoCs report low `hardwareConcurrency`; a touchscreen with
+    // plenty of cores is usually a decent modern tablet, so that combo is
+    // NOT penalized). On a hit, fall back to BasicShadowMap — a single
+    // hard-edged sample, much cheaper than the soft PCF blur — instead of
+    // disabling shadows outright. Capable devices (desktop, or a touchscreen
+    // with plenty of cores) keep full soft-shadow quality.
+    const isLowEndDevice =
+      (window.matchMedia?.('(pointer: coarse)').matches ?? false) &&
+      (navigator.hardwareConcurrency || 4) <= 4;
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = isLowEndDevice ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
     container.appendChild(this.renderer.domElement);
 
     this.camera = new THREE.PerspectiveCamera(52, 1, 0.5, 5000);
