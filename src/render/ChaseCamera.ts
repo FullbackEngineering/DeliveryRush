@@ -12,6 +12,11 @@ export class ChaseCamera {
   private readonly look = new THREE.Vector3();
   private started = false;
 
+  // Reusable scratch vectors for update() — avoids per-frame allocations.
+  private readonly _fwd = new THREE.Vector3();
+  private readonly _targetPos = new THREE.Vector3();
+  private readonly _targetLook = new THREE.Vector3();
+
   // Tunables (meters).
   distance = World.cam.dist;
   height = World.cam.height;
@@ -23,16 +28,16 @@ export class ChaseCamera {
 
   /** @param p car position; @param yaw car heading; @param speed01 0..1 */
   update(dt: number, p: THREE.Vector3, yaw: number, speed01: number): void {
-    const fwd = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+    const fwd = this._fwd.set(Math.sin(yaw), 0, Math.cos(yaw));
     const back = this.distance + speed01 * 4; // pull back at speed
     const high = this.height + speed01 * 2;
 
-    const targetPos = new THREE.Vector3(
+    const targetPos = this._targetPos.set(
       p.x - fwd.x * back,
       high,
       p.z - fwd.z * back,
     );
-    const targetLook = new THREE.Vector3(
+    const targetLook = this._targetLook.set(
       p.x + fwd.x * this.lookAhead,
       this.lookHeight,
       p.z + fwd.z * this.lookAhead,
