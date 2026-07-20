@@ -41,6 +41,11 @@ export interface VehicleModelOpts {
   /** Remove meshes whose name matches (e.g. broken/degenerate geometry that
    *  otherwise inflates the bounding box and makes the car float). */
   dropMeshes?: RegExp;
+  /** Attach a procedural seated courier on top — scooters/bikes ship no rider
+   *  mesh, so an empty saddle would look wrong. Placed from the model's bounds. */
+  rider?: boolean;
+  /** Jacket colour for the procedural rider (default: courier red). */
+  riderColor?: number;
 }
 
 const _box = new THREE.Box3();
@@ -110,7 +115,56 @@ export function prepareVehicle(src: THREE.Object3D, opts: VehicleModelOpts): THR
     _box.getSize(_size);
     holder.add(makeContactShadow(_size.x * 1.15, _size.z * 1.05));
   }
+
+  // Seated courier on top (the model's front is now +Z after `extraYaw`, so the
+  // rider faces +Z and reaches forward to the handlebar). Seat point is derived
+  // from the prepared model's bounds so it scales with `targetLength`.
+  if (opts.rider) {
+    _box.setFromObject(model);
+    _box.getSize(_size);
+    holder.add(makeCourierRider(opts.riderColor ?? 0xef4444, _size.y * 0.36, -_size.z * 0.03));
+  }
   return holder;
+}
+
+/**
+ * A chunky low-poly seated courier, built from boxes in meters to match the
+ * matte city (no external asset). Origin at the saddle; +Z is forward, so it
+ * faces the handlebar and leans into it. `seatY`/`seatZ` place the hips on the
+ * vehicle's saddle. Small pose angles are eyeballed — easy to nudge here.
+ */
+function makeCourierRider(jacketColor: number, seatY: number, seatZ: number): THREE.Group {
+  const g = new THREE.Group();
+  const jacket = new THREE.MeshStandardMaterial({ color: jacketColor, roughness: 0.7, metalness: 0.05 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x171b24, roughness: 0.6, metalness: 0.1 });
+  const skin = new THREE.MeshStandardMaterial({ color: 0xd8a070, roughness: 0.85, metalness: 0 });
+  const pants = new THREE.MeshStandardMaterial({ color: 0x2c3140, roughness: 0.8, metalness: 0.05 });
+  const visor = new THREE.MeshStandardMaterial({ color: 0x223047, roughness: 0.25, metalness: 0.4 });
+
+  const add = (w: number, h: number, d: number, mat: THREE.Material,
+    x: number, y: number, z: number, rx = 0): void => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.position.set(x, y, z);
+    m.rotation.x = rx;
+    m.castShadow = true;
+    g.add(m);
+  };
+
+  const y = seatY, z = seatZ;
+  add(0.42, 0.26, 0.44, pants, 0, y, z);                       // hips
+  add(0.16, 0.15, 0.42, pants, -0.12, y - 0.02, z + 0.28, 0.08); // L thigh (forward)
+  add(0.16, 0.15, 0.42, pants, 0.12, y - 0.02, z + 0.28, 0.08);  // R thigh
+  add(0.13, 0.40, 0.13, dark, -0.14, y - 0.28, z + 0.46, -0.30); // L shin → footboard
+  add(0.13, 0.40, 0.13, dark, 0.14, y - 0.28, z + 0.46, -0.30);  // R shin
+  add(0.44, 0.52, 0.30, jacket, 0, y + 0.32, z + 0.04, 0.20);    // torso (leaning fwd)
+  add(0.13, 0.13, 0.46, jacket, -0.24, y + 0.34, z + 0.26, 0.18); // L arm → bars
+  add(0.13, 0.13, 0.46, jacket, 0.24, y + 0.34, z + 0.26, 0.18);  // R arm
+  add(0.12, 0.12, 0.12, dark, -0.24, y + 0.30, z + 0.50);        // L glove
+  add(0.12, 0.12, 0.12, dark, 0.24, y + 0.30, z + 0.50);         // R glove
+  add(0.19, 0.20, 0.20, skin, 0, y + 0.64, z + 0.14);           // head
+  add(0.26, 0.24, 0.26, dark, 0, y + 0.70, z + 0.12);           // helmet
+  add(0.22, 0.08, 0.06, visor, 0, y + 0.68, z + 0.25);          // visor
+  return g;
 }
 
 export interface FrontWheelHandles {

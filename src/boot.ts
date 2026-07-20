@@ -6,7 +6,7 @@ import { CityView } from '@/world/CityView';
 import { CityDecor } from '@/world/CityDecor';
 import { Vehicle3D } from '@/world/Vehicle3D';
 import { loadGLB, prepareVehicle } from '@/world/ModelLoader';
-import carUrl from '@/assets/models/car_murphy.glb?url';
+import { modelFor } from '@/data/vehicleModels';
 import copUrl from '@/assets/models/car_cop.glb?url';
 import { Orders3D } from '@/world/Orders3D';
 import { Traffic3D } from '@/world/Traffic3D';
@@ -320,19 +320,24 @@ function exposeHarness(
 // --- Route by ?mode= --------------------------------------------------------
 const mode = new URLSearchParams(window.location.search).get('mode');
 
-/** Preload + prepare the shared car template before spawning a drivable world. */
+/** Preload + prepare the SELECTED vehicle's template before spawning a drivable
+ *  world. The starter loads the delivery scooter (with a procedural rider); the
+ *  rest load the shared car GLB — see `data/vehicleModels.ts`. */
 async function preloadCar(): Promise<void> {
+  const spec = modelFor(def.id);
   try {
-    const src = await loadGLB(carUrl);
+    const src = await loadGLB(spec.url);
     carTemplate = prepareVehicle(src, {
-      targetLength: 5.8,          // reads bigger relative to the wide roads (was 4.6, felt small)
-      extraYaw: Math.PI,          // model faces -Z; flip so the nose is +Z (travel dir)
-      bodyColor: def.bodyColor,   // paint the car in the player's palette colour
-      contactShadow: true,        // ground it in the matte world
-      dropMeshes: /numberplate_front/i, // broken mesh (spans 0–2.15m) → made the car float
+      targetLength: spec.targetLength,
+      extraYaw: spec.extraYaw,                         // flip nose onto +Z (travel dir)
+      bodyColor: spec.tintBody ? def.bodyColor : undefined, // scooter keeps its livery
+      contactShadow: true,                             // ground it in the matte world
+      dropMeshes: spec.dropMeshes,
+      rider: spec.rider,                               // seated courier on the scooter
+      riderColor: def.accentColor,
     });
   } catch (e) {
-    console.warn('[boot] car model load failed — using procedural box car', e);
+    console.warn('[boot] vehicle model load failed — using procedural box car', e);
   }
 }
 

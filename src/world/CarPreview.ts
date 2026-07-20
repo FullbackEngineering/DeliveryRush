@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { loadGLB, prepareVehicle } from '@/world/ModelLoader';
-import carUrl from '@/assets/models/car_murphy.glb?url';
+import { modelFor } from '@/data/vehicleModels';
 import { VehicleDef } from '@/types';
 import { Garage } from '@/core/Balance';
 
@@ -27,16 +27,19 @@ export class CarPreview {
 
   async setCar(def: VehicleDef): Promise<void> {
     const myReq = ++this.reqId;
-    const src = await loadGLB(carUrl).catch(() => null);
+    const spec = modelFor(def.id);
+    const src = await loadGLB(spec.url).catch(() => null);
     if (myReq !== this.reqId) return; // a newer setCar() already won the race
     this.disposeCar();
     if (!src) return; // offline/harness fallback — leave an empty platform
     const carGroup = prepareVehicle(src, {
-      targetLength: 5.8,
-      extraYaw: Math.PI,
-      bodyColor: def.bodyColor,
+      targetLength: spec.targetLength,
+      extraYaw: spec.extraYaw,
+      bodyColor: spec.tintBody ? def.bodyColor : undefined,
       contactShadow: true,
-      dropMeshes: /numberplate_front/i,
+      dropMeshes: spec.dropMeshes,
+      rider: spec.rider,
+      riderColor: def.accentColor,
     });
     this.car = carGroup;
     this.holder.add(carGroup);
