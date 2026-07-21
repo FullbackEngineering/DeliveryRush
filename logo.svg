@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#173154"/>
+      <stop offset="1" stop-color="#0b1220"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7fd0ff"/>
+      <stop offset="1" stop-color="#39a2f0"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#bg)"/>
+  <!-- road -->
+  <rect x="28" y="150" width="200" height="34" rx="10" fill="#0c1526"/>
+  <rect x="44" y="165" width="26" height="6" rx="3" fill="#3a4a66"/>
+  <rect x="90" y="165" width="26" height="6" rx="3" fill="#3a4a66"/>
+  <rect x="136" y="165" width="26" height="6" rx="3" fill="#3a4a66"/>
+  <rect x="182" y="165" width="26" height="6" rx="3" fill="#3a4a66"/>
+  <!-- delivery car body -->
+  <rect x="70" y="96" width="116" height="46" rx="14" fill="url(#accent)"/>
+  <rect x="96" y="72" width="66" height="34" rx="12" fill="url(#accent)"/>
+  <rect x="104" y="80" width="50" height="22" rx="7" fill="#0b1220" opacity="0.85"/>
+  <!-- delivery box on roof -->
+  <rect x="150" y="60" width="30" height="26" rx="5" fill="#37d67a"/>
+  <rect x="150" y="71" width="30" height="4" fill="#1a7e44"/>
+  <!-- wheels -->
+  <circle cx="98" cy="146" r="17" fill="#0b1220"/>
+  <circle cx="98" cy="146" r="8" fill="#39a2f0"/>
+  <circle cx="160" cy="146" r="17" fill="#0b1220"/>
+  <circle cx="160" cy="146" r="8" fill="#39a2f0"/>
+  <!-- headlight -->
+  <rect x="176" y="112" width="12" height="12" rx="4" fill="#fff3c4"/>
+  <!-- wordmark -->
+  <text x="128" y="222" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif"
+        font-size="30" font-weight="900" fill="#e6edf7" letter-spacing="1">DR</text>
+</svg>

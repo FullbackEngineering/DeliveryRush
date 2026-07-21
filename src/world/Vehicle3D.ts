@@ -11,14 +11,8 @@ import { damp, clamp } from '@/utils/MathUtils';
  *  exact `VehicleFeel` field list. */
 const PITCH_MAX = 0.04;
 
-/**
- * Free-driving arcade car (meters). Hold the gas to accelerate along the current
- * heading, release to coast down; hold Left/Right to steer continuously (turn
- * rate scales with speed, so you must be moving to turn) — the car can face and
- * drive any direction, no grid rails. Chunky but realistically-proportioned
- * low-poly mesh.
- */
 export class Vehicle3D {
+  // Oyuncu aracını yönetir, hız, direksiyon ve çarpışma işlemlerini kontrol eder
   readonly object = new THREE.Group();
   /** Visual-only child holder: the model lives here; front-wheel steering, body
    *  lean and accel/brake pitch are applied below it. `object`
@@ -53,6 +47,7 @@ export class Vehicle3D {
 
   speedMultiplier = 1;
 
+  // Başlatır, araba modelini ve fizik parametrelerini kurar
   constructor(
     private grid: Grid,
     bodyColor: number,
@@ -83,26 +78,26 @@ export class Vehicle3D {
     this.object.rotation.y = this.yaw;
   }
 
-  // --- Input ---------------------------------------------------------------
+  // Direksiyon girdisini ayarlar (sol/sağ/orta)
   setSteer(steer: Steer): void {
     // +yaw rotates the car toward world +X, which is screen-LEFT for the chase
     // camera (it looks down +Z). So Left = +1, Right = -1 to match the screen.
     this.steerInput = steer === Steer.Left ? 1 : steer === Steer.Right ? -1 : 0;
   }
-  /** Analog steering from the wheel: axis in [-1,+1] (−1 = full right, +1 = full left). */
+  // Analog direksiyon eksenini ayarlar (-1 sağ, +1 sol)
   setSteerAxis(axis: number): void {
     this.steerInput = axis < -1 ? -1 : axis > 1 ? 1 : axis;
   }
+  // Gaz pedalını açır veya kapatır
   setThrottle(on: boolean): void {
     this.throttle = on;
   }
-  /** Hold to back up (capped at `World.reverseSpeed`); ignored while `throttle`
-   * is also held (forward wins) — see `update`'s target selection. */
+  // Geri vites komutunu ayarlar (gaz basıldığında yoksayılır)
   setReverse(on: boolean): void {
     this.reverse = on;
   }
 
-  /** Teleport back to a start pose and clear all motion (used on run restart). */
+  // Aracı başlangıç konumuna sıfırlar ve hareketi temizler
   reset(x: number, z: number, yaw = 0): void {
     this.x = x;
     this.z = z;
@@ -133,6 +128,7 @@ export class Vehicle3D {
   get speedKmh(): number { return Math.round(Math.abs(this.speed) * World.kmhFactor); }
   get isInvulnerable(): boolean { return this.cooldown > 0; }
 
+  // Araçı çarpışmaya yanıt vermesi yavaşlatır, hasar durumu verir
   crash(): void {
     if (this.cooldown > 0) return;
     this.speed *= 0.3;
@@ -140,7 +136,7 @@ export class Vehicle3D {
     this.cooldown = 0.7;
   }
 
-  // --- Update --------------------------------------------------------------
+  // Araç fizik, hız, direksiyon ve çarpışmaları her kare güncelleştirir
   update(dt: number): void {
     if (this.cooldown > 0) this.cooldown -= dt;
     this.crashFactor = Math.min(1, this.crashFactor + 1.6 * dt);
@@ -194,7 +190,7 @@ export class Vehicle3D {
     bus.emit(GameEvent.SpeedChanged, this.normalizedSpeed, this.speedKmh);
   }
 
-  // --- Vehicle feel (visual only — never touches `object`'s collision transform) --
+  // Görsel efektleri (tekerlek, eğilme, hatırlama) güncelleştirir
   private updateVehicleFeel(dt: number): void {
     const accel = dt > 0 ? (this.speed - this.prevSpeed) / dt : 0;
     this.prevSpeed = this.speed;
@@ -222,7 +218,7 @@ export class Vehicle3D {
     this.visual.rotation.x = this.visPitch;
   }
 
-  // --- Mesh (meters, nose +Z) ---------------------------------------------
+  // Araba görünümü kutuları inşa ederiri (fallback/tutorial)
   private buildMesh(body: number, accent: number): void {
     const g = this.visual;
     const box = (w: number, h: number, d: number, color: number, x: number, y: number, z: number): THREE.Mesh => {

@@ -23,6 +23,7 @@ export class Game {
   private fpsFrames = 0;
   private readonly updateFns: Array<(dt: number) => void> = [];
 
+  // WebGL renderer'ını başlatır, gölgelendirme türünü cihaza uygun seçer.
   constructor(private readonly container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     // Cap DPR: retina phones would otherwise render 3× the pixels for no visible gain.
@@ -55,20 +56,24 @@ export class Game {
   }
 
   /** Register a per-frame update (dt in seconds, capped). */
+  // Her kare için çalıştırılacak güncelleme işlevini kaydeder.
   onUpdate(fn: (dt: number) => void): void {
     this.updateFns.push(fn);
   }
 
+  // Render döngüsünü başlatır, animasyon istekleri başlamaz.
   start(): void {
     this.last = performance.now();
     this.raf = requestAnimationFrame(this.tick);
   }
 
+  // Render döngüsünü durdurur, istenen animasyon çerçevesini iptal eder.
   stop(): void {
     cancelAnimationFrame(this.raf);
     this.raf = 0;
   }
 
+  // Pencere boyutuna uygun renderer ve kamera boyutlarını günceller.
   private resize = (): void => {
     const w = this.container.clientWidth || window.innerWidth;
     const h = this.container.clientHeight || window.innerHeight;
@@ -77,6 +82,7 @@ export class Game {
     this.camera.updateProjectionMatrix();
   };
 
+  // Her kareyi işler: güncelleme işlevlerini çalıştırır, sahneyi render eder, FPS hesaplar.
   private tick = (t: number): void => {
     const dt = Math.min((t - this.last) / 1000, 0.05);
     this.last = t;
@@ -94,6 +100,7 @@ export class Game {
     this.raf = requestAnimationFrame(this.tick);
   };
 
+  // Render döngüsünü durdurur, olay dinleyicilerini temizler, GPU kaynaklarını serbest bırakır.
   dispose(): void {
     this.stop();
     window.removeEventListener('resize', this.resize);

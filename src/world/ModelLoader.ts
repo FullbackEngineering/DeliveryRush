@@ -13,7 +13,7 @@ loader.setMeshoptDecoder(MeshoptDecoder);
 
 const cache = new Map<string, Promise<THREE.Group>>();
 
-/** Load a GLB once; resolves to its root scene (SHARED — clone before adding to the world). */
+// GLB'yi yükler, sahne kez önbelleğe alındı (paylaşılmış, klonla)
 export function loadGLB(url: string): Promise<THREE.Group> {
   let p = cache.get(url);
   if (!p) {
@@ -52,13 +52,7 @@ const _box = new THREE.Box3();
 const _size = new THREE.Vector3();
 const _c = new THREE.Vector3();
 
-/**
- * Turn a raw loaded GLB scene into a game-ready vehicle template: uniformly scaled
- * to `targetLength`, its longer horizontal axis aligned to Z (the nose axis),
- * wheels grounded at y=0, centred on X/Z. Materials are cloned and toned down so
- * the photoreal car reads as part of the matte low-poly city (less chrome, calmer
- * reflections, palette-tinted paint). Returns a fresh Group each call.
- */
+// GLB sahnesi oyun aracına dönüştürülür: ölçek, oryantasyon, malzeme
 export function prepareVehicle(src: THREE.Object3D, opts: VehicleModelOpts): THREE.Group {
   const metalCap = opts.metalnessCap ?? 0.35;
   const roughFloor = opts.roughnessFloor ?? 0.55;
@@ -127,12 +121,7 @@ export function prepareVehicle(src: THREE.Object3D, opts: VehicleModelOpts): THR
   return holder;
 }
 
-/**
- * A chunky low-poly seated courier, built from boxes in meters to match the
- * matte city (no external asset). Origin at the saddle; +Z is forward, so it
- * faces the handlebar and leans into it. `seatY`/`seatZ` place the hips on the
- * vehicle's saddle. Small pose angles are eyeballed — easy to nudge here.
- */
+// Oturmuş kuryeyi kutulardan oluşturur, araç üzerine yerleştirir
 function makeCourierRider(jacketColor: number, seatY: number, seatZ: number): THREE.Group {
   const g = new THREE.Group();
   const jacket = new THREE.MeshStandardMaterial({ color: jacketColor, roughness: 0.7, metalness: 0.05 });
@@ -174,12 +163,7 @@ export interface FrontWheelHandles {
 
 const FRONT_WHEEL_RE = /wheel\w*_(fl|fr)\b/i;
 
-/**
- * Adds one steering pivot at the actual centre of each front tyre. Some exported
- * GLBs keep wheel-node origins at the car origin, so rotating those nodes directly
- * makes the tyres orbit the body. Only two empty groups are added; wheels never
- * receive roll animation.
- */
+// Ön tekerlek dönüş pivotlarını lastik merkezine yerleştirir
 export function makeFrontWheelSteerPivots(root: THREE.Object3D): FrontWheelHandles {
   const candidates: FrontWheelHandles = {};
   root.traverse((node) => {
@@ -211,7 +195,7 @@ export function makeFrontWheelSteerPivots(root: THREE.Object3D): FrontWheelHandl
   return handles;
 }
 
-/** A cheap radial-gradient dark disc laid flat just above the road — a fake shadow. */
+// Ucuz radyal degradeli gölge diski, araç altına yerleştirilir
 function makeContactShadow(w: number, d: number): THREE.Mesh {
   const c = document.createElement('canvas');
   c.width = c.height = 128;

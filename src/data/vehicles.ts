@@ -102,11 +102,13 @@ export const VEHICLE_MAP: Record<string, VehicleDef> = Object.fromEntries(
   VEHICLES.map((v) => [v.id, v]),
 );
 
+// Bir araçı bir seviye yükseltmek için gereken para maliyetini döndürür.
 /** Cost in coins to upgrade a vehicle from `level` to `level+1`. */
 export function upgradeCost(def: VehicleDef, level: number): number {
   return Math.round(500 * Math.pow(1.8, level - 1) + (def.unlockCost > 0 ? def.unlockCost * 0.08 : 300));
 }
 
+// Belirli bir seviyedeki araçın 3D sürüş istatistiklerini hesaplar (hız/ivme/dönüş).
 /** Effective 3D drive stats (top speed / acceleration / turn) at a given level —
  *  upgrades make the same car faster. This is what `Vehicle3D` is built with. */
 export function driveStatsAtLevel(def: VehicleDef, level: number): DriveStats {
@@ -119,6 +121,7 @@ export function driveStatsAtLevel(def: VehicleDef, level: number): DriveStats {
   };
 }
 
+// Belirli bir seviyedeki araçın tüm istatistiklerini hesaplar.
 /** Compute effective stats for a vehicle at a given level. */
 export function statsAtLevel(def: VehicleDef, level: number) {
   const s = { ...def.base };

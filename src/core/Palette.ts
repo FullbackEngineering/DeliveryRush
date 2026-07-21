@@ -49,11 +49,13 @@ export const Palette = {
   black: 0x000000,
 } as const;
 
+// 0xRRGGBB hex rengini '#rrggbb' string'ine dönüştürür.
 /** 0xRRGGBB int -> '#rrggbb' string. */
 export function hex(n: number): string {
   return '#' + n.toString(16).padStart(6, '0');
 }
 
+// İki hex rengi arasında doğrusal enterpolasyon yapar (t: 0-1).
 /** Linear blend between two 0xRRGGBB ints. t in [0,1]. */
 export function mix(a: number, b: number, t: number): number {
   const ar = (a >> 16) & 0xff,
@@ -68,6 +70,7 @@ export function mix(a: number, b: number, t: number): number {
   return (r << 16) | (g << 8) | bl;
 }
 
+// Nadirlik seviyesine göre renk döndürür (nadir/epik/efsanevi/sıradan).
 export function rarityColor(rarity: string): number {
   switch (rarity) {
     case 'rare':

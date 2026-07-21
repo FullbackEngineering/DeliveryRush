@@ -29,6 +29,7 @@ export enum Steer {
   Right = 'right',
 }
 
+// Yöne direksiyon (sol/sağ/düz) uygulanarak yeni yön döndürür.
 /** Turn a heading left / right / straight. */
 export function applySteer(dir: Direction, steer: Steer): Direction {
   const order = [Direction.North, Direction.East, Direction.South, Direction.West];
@@ -38,6 +39,7 @@ export function applySteer(dir: Direction, steer: Steer): Direction {
   return dir;
 }
 
+// Yön numarasını radyan cinsinden dönüşe çevirir (Kuzey = yukarı).
 /** Rotation (radians) for a heading, with North = up (car art points "up"/north by default). */
 export function dirToAngle(dir: Direction): number {
   switch (dir) {

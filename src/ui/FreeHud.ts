@@ -38,6 +38,7 @@ export class FreeHud {
   private lastActiveUrgent = false;
   private lastActiveLate = false;
 
+  // SERBEST modu HUD DOM'unu, minimap'i ve event listener'larını kurar.
   constructor(
     parent: HTMLElement,
     private board: JobBoard,
@@ -132,14 +133,14 @@ export class FreeHud {
     this.drawMap();
   }
 
+  // Hız göstergesini km/h cinsinden günceller.
   setSpeed(kmh: number): void {
     if (kmh === this.lastSpeedShown) return;
     this.lastSpeedShown = kmh;
     this.els.speed.textContent = String(kmh);
   }
 
-  /** Call every frame with the vehicle's world pose; internally throttles the
-   * minimap redraw to ~12fps (canvas repaint is comparatively expensive). */
+  // Minimap'i araç dünya pozisyonuyla günceller (~12fps'le throttled).
   updateMap(dt: number, vx: number, vz: number, vyaw: number): void {
     this.lastVx = vx;
     this.lastVz = vz;
@@ -151,31 +152,37 @@ export class FreeHud {
     this.drawMap();
   }
 
+  // Event bus dinleyicilerini temizler ve DOM'u kaldırır.
   destroy(): void {
     for (const [evt, fn] of this.handlers) bus.off(evt, fn);
     this.handlers = [];
     this.root.remove();
   }
 
+  // Event bus dinleyicisi ekler ve temizlik için kayıt tutar.
   private on(evt: string, fn: (...a: any[]) => void): void {
     bus.on(evt, fn);
     this.handlers.push([evt, fn]);
   }
 
   // --- Wallet ----------------------------------------------------------------
+  // Cüzdan coin sayısını günceller.
   private setCoins(c: number): void {
     this.els.wallet.textContent = formatNumber(c);
   }
 
   // --- Job board sheet ---------------------------------------------------------
+  // İş panosu sheet'ini açar ve mevcut işleri gösterir.
   private openBoard(): void {
     this.renderOffered();
     this.els.boardRoot.classList.add('open');
   }
+  // İş panosu sheet'ini kapatır.
   private closeBoard(): void {
     this.els.boardRoot.classList.remove('open');
   }
 
+  // Sunulan işleri panosu listesine işler.
   private renderOffered(): void {
     const jobs = this.board.offered;
     const hasActive = !!this.board.active;
@@ -193,6 +200,7 @@ export class FreeHud {
   }
 
   // --- Stop-to-order panel (primary interaction) --------------------------------
+  // Stop-to-order panelini açar ve durak noktasındaki işleri gösterir.
   private openStop(poi: Poi): void {
     this.currentStopPoi = poi;
     this.els.stopHint.classList.remove('show');
@@ -202,11 +210,12 @@ export class FreeHud {
     this.els.stopPanel.classList.add('open');
   }
 
+  // Durak noktasındaki işleri listeler (CSS satırlar herhangi bir sayıda scroll eder).
   private renderStopRows(): void {
     if (!this.currentStopPoi) return;
-    // The supplied shop panel has three dedicated low-poly order slots. Keep
-    // the global job board complete, but present the best three local choices.
-    const orders = this.board.ordersAt(this.currentStopPoi).slice(0, 3);
+    // Rows are CSS-native and scroll, so we no longer clamp to a fixed slot count.
+    // A modest cap keeps the panel tidy; the global job board still holds the rest.
+    const orders = this.board.ordersAt(this.currentStopPoi).slice(0, 8);
     const hasActive = !!this.board.active;
     this.els.stopNote.classList.toggle('show', hasActive);
     this.els.stopList.classList.toggle('disabled', hasActive);
@@ -222,12 +231,14 @@ export class FreeHud {
     });
   }
 
+  // Stop-to-order panelini kapatır.
   private closeStopPanel(): void {
     this.currentStopPoi = null;
     this.els.stopPanel.classList.remove('open');
   }
 
   // --- Active job card ---------------------------------------------------------
+  // Aktif işi kartda gösterir (pickup/deliver durumuna göre).
   private showActive(job: Job): void {
     this.els.activeIcon.textContent = job.kind.emoji;
     this.els.activeTitle.textContent = `${job.special ? '⭐ ' : ''}${job.source.name} → ${job.dest.name}`;
@@ -239,6 +250,7 @@ export class FreeHud {
     this.lastActiveLate = false;
   }
 
+  // Aktif iş subtitle'ı (al/teslim) ve durumunu günceller.
   private updateActiveSub(job: Job): void {
     const toPickup = job.state === 'toPickup';
     this.els.activeSub.textContent = toPickup
@@ -247,6 +259,7 @@ export class FreeHud {
     this.els.activeCard.classList.toggle('delivering', !toPickup);
   }
 
+  // Aktif iş saydown progress bar'ını ve aciliyet durumunu günceller.
   private setActiveTimer(seconds: number, fraction: number): void {
     const frac = Math.round(Math.max(0, fraction) * 1000);
     if (frac !== this.lastActiveFrac) {
@@ -265,16 +278,19 @@ export class FreeHud {
     }
   }
 
+  // İş teslim edilince ödül float text'i gösterir.
   private onDelivered(r: JobResult): void {
     this.hideActive();
     this.floatText(`+${r.pay} 🪙`, '#37d67a');
     if (r.penalty > 0) setTimeout(() => this.floatText(`-${r.penalty} 🪙`, '#ef4444'), 260);
   }
 
+  // Aktif iş kartını gizler.
   private hideActive(): void {
     this.els.activeCard.classList.remove('show');
   }
 
+  // Animeli kayan metin üretir ve gösterir.
   private floatText(text: string, color: string): void {
     const el = document.createElement('div');
     el.className = 'dr-free-float';
@@ -285,6 +301,7 @@ export class FreeHud {
   }
 
   // --- Minimap -------------------------------------------------------------
+  // Şehrin canlı minimap görünümünü çizer (yollar, POI'ler, oyuncu, hedef).
   private drawMap(): void {
     const ctx = this.mapCtx;
     const S = this.mapSize;

@@ -30,11 +30,12 @@ export class CityDecor {
   private landmarkPlots: Array<{ col: number; row: number }> = [];
   private kitPlots: Array<{ col: number; row: number }> = [];
 
+  // Şehir dekoru başlatır, otobüs durakları inşa eder
   constructor(private grid: Grid, private rng: Rng) {
     this.buildTransitStops();
   }
 
-  /** Lightweight bus stops and route signs along SERBEST's wide avenues. */
+  // Geniş caddelere hafif otobüs durakları ve işaret paneleri yerleştirir
   private buildTransitStops(): void {
     const furniture: Xform[] = [];
     for (let c = this.grid.avenueEvery; c < this.grid.cols; c += this.grid.avenueEvery) {
@@ -54,11 +55,7 @@ export class CityDecor {
     );
   }
 
-  /**
-   * Claim `Decor.landmarkCount` + `Decor.kitCount` interior plots not already
-   * taken by POIs, and return `taken ∪ claimed` for `CityView`'s `reserved` param
-   * so those plots render as bare sidewalk (the GLB landmark sits there instead).
-   */
+  // Meşe ve landmark alanlarını ayırır, CityView'e saklanacak alanları döndürür
   planPlots(taken: ReadonlySet<string>): Set<string> {
     const free: Array<{ col: number; row: number }> = [];
     for (let c = 1; c < this.grid.cols - 1; c++) {
@@ -83,7 +80,7 @@ export class CityDecor {
     return combined;
   }
 
-  /** World XZ centres of the placed landmark + kit plots (playtest/debug helper). */
+  // Yerleştirilen landmark ve kit alanlarının dünya XZ merkezlerini döndürür
   plotCenters(): { kit: Array<{ x: number; z: number }>; school: Array<{ x: number; z: number }> } {
     const toC = (p: { col: number; row: number }) => {
       const r = this.grid.plotRect(p.col, p.row)!;
@@ -92,7 +89,7 @@ export class CityDecor {
     return { kit: this.kitPlots.map(toC), school: this.landmarkPlots.map(toC) };
   }
 
-  /** Stream in all three GLB asset layers (skyline + landmarks + kit). */
+  // Üç GLB katmanın tümünü yükler (ufuk + landmark + kit)
   async build(): Promise<void> {
     await Promise.all([this.buildSkyline(), this.buildLandmarks(), this.buildKit()]);
   }
@@ -102,6 +99,7 @@ export class CityDecor {
   // clones (hundreds of draw calls) we bake every cluster's geometry into world
   // space and merge it into ONE mesh with a single flat silhouette material — a
   // dark downtown ring for ~1 draw call, which reads great through the fog.
+  // New York ufuk çizgisini yükler ve derlemeye hazırlar
   private async buildSkyline(): Promise<void> {
     let src: THREE.Group;
     try { src = await loadGLB(nyUrl); } catch { return; }
@@ -169,7 +167,7 @@ export class CityDecor {
     this.group.add(mesh);
   }
 
-  // --- School landmarks ------------------------------------------------------
+  // Okul landmark'larını yerleştirir ve hazırlar
   private async buildLandmarks(): Promise<void> {
     let src: THREE.Group;
     try { src = await loadGLB(schoolUrl); } catch { return; }
@@ -184,7 +182,7 @@ export class CityDecor {
     }
   }
 
-  // --- Colourful low-poly kit buildings (disabled — see Decor.kitCount) -------
+  // Renkli düşük poli kit binalarını örnek yöntemiyle inşa eder
   private async buildKit(): Promise<void> {
     if (!this.kitPlots.length) return;
     let src: THREE.Group;
@@ -223,11 +221,7 @@ interface BuildingPart {
   material: THREE.Material;
 }
 
-/**
- * Bake the optimized GLB hierarchy and normalize its footprint to one metre.
- * One InstancedMesh is created per source material group, so five buildings cost
- * the same draw count as one rather than cloning seven mesh objects per plot.
- */
+// GLB hiyerarşisini hazırlar, alan normalizasyonu yaparak örnek parçalar döndürür
 function prepareInstancedBuilding(model: THREE.Group): BuildingPart[] {
   model.updateMatrixWorld(true);
   const parts: BuildingPart[] = [];
@@ -263,7 +257,7 @@ function prepareInstancedBuilding(model: THREE.Group): BuildingPart[] {
   return parts;
 }
 
-/** Rebuild quantized meshopt attributes as floats before applying world matrices. */
+// Mikemop niteliklerini yeniden türetir, world matrisi uygulanmadan önce
 function floatGeometry(source: THREE.BufferGeometry, matrix: THREE.Matrix4): THREE.BufferGeometry {
   const geometry = new THREE.BufferGeometry();
   const position = source.getAttribute('position');
@@ -303,13 +297,7 @@ interface PrepOpts {
   strip?: RegExp;
 }
 
-/**
- * Clone a loaded GLB into a game-ready static prop: optional mesh stripping,
- * matte-stylised materials (tamed metalness/reflections so photoreal buildings
- * sit in the low-poly world), uniformly scaled to a target size, centred on X/Z
- * and grounded at y=0. Returns a fresh holder Group each call (geometry/material
- * are shared via clone(true), so re-placing is cheap).
- */
+// GLB yüklemesini hazırlar, ölçekler, ortalayıp döndürür
 function prepare(src: THREE.Object3D, opts: PrepOpts): THREE.Group {
   const model = src.clone(true);
   const drop: THREE.Object3D[] = [];

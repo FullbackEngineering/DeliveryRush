@@ -24,9 +24,11 @@ export class ChaseCamera {
   lookHeight = World.cam.lookHeight;
   private readonly followLambda = 6;
 
+  // Kamerayı başlatır ve takip parametrelerini ayarlar.
   constructor(private camera: THREE.PerspectiveCamera) {}
 
   /** @param p car position; @param yaw car heading; @param speed01 0..1 */
+  // Kamera konumunu ve bakış açısını araç hareketi ve hızına göre yumuşak olarak günceller.
   update(dt: number, p: THREE.Vector3, yaw: number, speed01: number): void {
     const fwd = this._fwd.set(Math.sin(yaw), 0, Math.cos(yaw));
     const back = this.distance + speed01 * 4; // pull back at speed

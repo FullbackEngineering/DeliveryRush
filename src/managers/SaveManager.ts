@@ -9,6 +9,7 @@ import { VEHICLES } from '@/data/vehicles';
 const STORAGE_KEY = 'delivery_rush_profile_v1';
 const PROFILE_VERSION = 2;
 
+// Yeni oyuncu için varsayılan profili döndürür.
 export function defaultProfile(): PlayerProfile {
   return {
     version: PROFILE_VERSION,
@@ -32,6 +33,7 @@ export function defaultProfile(): PlayerProfile {
 }
 
 export const SaveManager = {
+  // localStorage'dan profili yükler, hata durumunda varsayılan profili döndürür.
   load(): PlayerProfile {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -43,6 +45,7 @@ export const SaveManager = {
     }
   },
 
+  // Profili localStorage'a kaydetmeyi deneme, başarısızlık sessizce yoksayılır.
   save(profile: PlayerProfile): void {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
@@ -51,10 +54,12 @@ export const SaveManager = {
     }
   },
 
+  // Profili JSON stringine dönüştürür, bulut kaydı için.
   serialize(profile: PlayerProfile): string {
     return JSON.stringify(profile);
   },
 
+  // Profili varsayılana sıfırlar ve localStorage'a kaydeder.
   reset(): PlayerProfile {
     const p = defaultProfile();
     this.save(p);
@@ -63,6 +68,7 @@ export const SaveManager = {
 };
 
 /** Fill in any fields added in newer versions so old saves don't crash. */
+// Eski kayıtlarda eksik alanları yeni değerlerle doldurarak şemayı günceller.
 function migrate(p: PlayerProfile): PlayerProfile {
   const base = defaultProfile();
   const merged: PlayerProfile = {

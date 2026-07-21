@@ -13,10 +13,12 @@ import { VEHICLE_MAP, upgradeCost } from '@/data/vehicles';
 class ProfileStoreImpl {
   private profile: PlayerProfile = SaveManager.load();
 
+  // Okuma-yalnız profil verisini döndürür.
   get(): Readonly<PlayerProfile> {
     return this.profile;
   }
 
+  // Profili yerel ve bulut depolamaya kaydeder, olayı yaylar.
   private commit(): void {
     SaveManager.save(this.profile);
     void Services.cloudSave.save(SaveManager.serialize(this.profile));
@@ -24,17 +26,20 @@ class ProfileStoreImpl {
   }
 
   // --- Economy ------------------------------------------------------------
+  // Oyuncuya para ekler, 0'ın altında düşmeyi engeller.
   addCoins(n: number): void {
     this.profile.coins = Math.max(0, this.profile.coins + Math.round(n));
     bus.emit(GameEvent.CoinsChanged, this.profile.coins);
     this.commit();
   }
 
+  // Oyuncuya mücevher ekler, 0'ın altında düşmeyi engeller.
   addGems(n: number): void {
     this.profile.gems = Math.max(0, this.profile.gems + Math.round(n));
     this.commit();
   }
 
+  // Paraları harcamayı deneme, yeterse düşür ve true döndür, yoksa false döndür.
   spendCoins(n: number): boolean {
     if (this.profile.coins < n) return false;
     this.profile.coins -= n;
@@ -43,6 +48,7 @@ class ProfileStoreImpl {
     return true;
   }
 
+  // Mücevherleri harcamayı deneme, yeterse düşür ve true döndür, yoksa false.
   spendGems(n: number): boolean {
     if (this.profile.gems < n) return false;
     this.profile.gems -= n;
@@ -51,6 +57,7 @@ class ProfileStoreImpl {
   }
 
   // --- Run results --------------------------------------------------------
+  // Koşu sonucunu kaydeder: paraları, teslim sayısını ve puanı ekler, seviyesi hesaplar.
   recordRun(coinsEarned: number, deliveries: number, score: number): void {
     this.profile.coins += Math.round(coinsEarned);
     this.profile.totalDeliveries += deliveries;
@@ -66,11 +73,13 @@ class ProfileStoreImpl {
     this.commit();
   }
 
+  // Sonraki seviyeye ulaşmak için gereken deneyim puanını hesaplar.
   xpForNext(): number {
     return 200 + (this.profile.level - 1) * 120;
   }
 
   // --- Garage -------------------------------------------------------------
+  // Sahip olunan bir aracı seçili araç olarak ayarlar.
   selectVehicle(id: string): void {
     if (this.profile.ownedVehicles.includes(id)) {
       this.profile.selectedVehicle = id;
@@ -78,10 +87,12 @@ class ProfileStoreImpl {
     }
   }
 
+  // Aracın mevcut seviyesini döndürür, varsayılan 1.
   vehicleLevel(id: string): number {
     return this.profile.vehicleLevels[id] ?? 1;
   }
 
+  // Aracın yükseltilip yükseltilemeyeceğini kontrol eder.
   canUpgradeVehicle(id: string): boolean {
     const def = VEHICLE_MAP[id];
     if (!def) return false;
@@ -89,6 +100,7 @@ class ProfileStoreImpl {
     return lvl < def.maxLevel && this.profile.coins >= upgradeCost(def, lvl);
   }
 
+  // Araç yükseltir, paraları harcama başarısını kontrol eder, başarıyı döndürür.
   upgradeVehicle(id: string): boolean {
     const def = VEHICLE_MAP[id];
     if (!def) return false;
@@ -101,6 +113,7 @@ class ProfileStoreImpl {
     return true;
   }
 
+  // Araç kilidini açar, paraları harcama başarısını kontrol eder, başarıyı döndürür.
   unlockVehicle(id: string): boolean {
     const def = VEHICLE_MAP[id];
     if (!def || def.unlockCost < 0) return false;
@@ -113,6 +126,7 @@ class ProfileStoreImpl {
   }
 
   // --- Cards --------------------------------------------------------------
+  // Sahibi olunan bir kartı belirtilen yuvaya takır.
   equipCard(slot: number, id: CardEffectId): void {
     if (slot < 0 || slot > 2) return;
     if (!this.profile.ownedCards.includes(id)) return;
@@ -120,12 +134,14 @@ class ProfileStoreImpl {
     this.commit();
   }
 
+  // Kartın mevcut seviyesini döndürür, varsayılan 1.
   cardLevel(id: CardEffectId): number {
     return this.profile.cardLevels[id] ?? 1;
   }
 
   // --- Shop (market: cards / cosmetics / consumable boosts) ----------------
   /** True when a non-consumable item is already owned (boosts are re-buyable). */
+  // Oyuncunun mağaza ürününü sahip olup olmadığını kontrol eder.
   ownsShopItem(item: ShopItem): boolean {
     if (item.category === 'boosts') return false;
     if (item.category === 'cards') return this.profile.ownedCards.includes(item.cardId);
@@ -138,6 +154,7 @@ class ProfileStoreImpl {
    * false with no charge if it's already owned or the balance is insufficient.
    * The single mutation point for the shop — the UI just calls it and re-reads.
    */
+  // Mağaza ürünü satın alır: paraları harcama ve ürünü envantera ekler, başarıyı döndürür.
   purchaseShopItem(item: ShopItem): boolean {
     if (this.ownsShopItem(item)) return false;
     const paid =
@@ -159,6 +176,7 @@ class ProfileStoreImpl {
   }
 
   // --- Settings -----------------------------------------------------------
+  // Oyuncu ayarını (ses, müzik, haptic, renk körü) ayarlar ve kaydeder.
   setSetting<K extends keyof PlayerProfile['settings']>(
     key: K,
     value: PlayerProfile['settings'][K],

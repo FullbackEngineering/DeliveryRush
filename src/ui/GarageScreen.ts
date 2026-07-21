@@ -20,6 +20,7 @@ export class GarageScreen {
   private handlers: Array<[string, (...a: any[]) => void]> = [];
   private viewIndex: number;
 
+  // Garaj ekranı DOM'unu ve 3D araç önizlemesini kurar.
   constructor(
     parent: HTMLElement,
     private preview: CarPreview,
@@ -64,7 +65,7 @@ export class GarageScreen {
     this.render();
   }
 
-  /** The id of the roster car currently previewed (for the harness). */
+  // Önizlenmekte olan araç ID'sini döner.
   get currentId(): string {
     return this.currentDef.id;
   }
@@ -73,31 +74,37 @@ export class GarageScreen {
     return VEHICLES[this.viewIndex];
   }
 
+  // Sonraki araç gösterir.
   next(): void {
     this.move(1);
   }
 
+  // Önceki araç gösterir.
   prev(): void {
     this.move(-1);
   }
 
+  // Event listener'ları temizler ve DOM'u kaldırır.
   destroy(): void {
     for (const [evt, fn] of this.handlers) bus.off(evt, fn);
     this.handlers = [];
     this.root.remove();
   }
 
+  // Araç indeksini deltayla değiştirir ve önizlemeyi günceller.
   private move(delta: number): void {
     this.viewIndex = (this.viewIndex + delta + VEHICLES.length) % VEHICLES.length;
     void this.preview.setCar(this.currentDef);
     this.render();
   }
 
+  // Event bus dinleyicisi ekler ve temizlik için kayıt tutar.
   private on(evt: string, fn: (...a: any[]) => void): void {
     bus.on(evt, fn);
     this.handlers.push([evt, fn]);
   }
 
+  // Garaj ekranını tam olarak yeniden çizer (araç ad, level, stat'lar, butonlar).
   private render(): void {
     const p = Profile.get();
     const def = this.currentDef;
@@ -126,6 +133,7 @@ export class GarageScreen {
     this.renderActions(def, owned, selected, level);
   }
 
+  // Araç aksiyon butonlarını (AÇ/SEÇ/YÜKSELT/OYNA) oluşturur.
   private renderActions(def: VehicleDef, owned: boolean, selected: boolean, level: number): void {
     const coins = Profile.get().coins;
     let html = '';
@@ -215,6 +223,7 @@ const TEMPLATE = `
     <div class="dr-gar-actions"></div>
   </div>`;
 
+// Garaj ekranı CSS stillerini document'e enjekte eder.
 let styled = false;
 function injectStyle(): void {
   if (styled) return;

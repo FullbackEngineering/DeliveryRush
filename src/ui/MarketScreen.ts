@@ -29,6 +29,7 @@ export class MarketScreen {
     if (!this.root.hidden) this.render();
   };
 
+  // Market ekranını kurar ve profile değişikliklerini dinlemeye başlar.
   constructor(options: MarketScreenOptions = {}) {
     this.options = options;
     this.getProfile = options.getProfile ?? (() => Profile.get());
@@ -47,6 +48,7 @@ export class MarketScreen {
     bus.on(GameEvent.ProfileChanged, this.onProfileChanged);
   }
 
+  // Market ekranını açar ve fokus yönetimini sağlar.
   open(): void {
     if (!this.root.hidden) return;
     this.previouslyFocused = document.activeElement as HTMLElement | null;
@@ -55,6 +57,7 @@ export class MarketScreen {
     requestAnimationFrame(() => this.root.querySelector<HTMLElement>('[data-close]')?.focus());
   }
 
+  // Market ekranını kapatır ve önceki element'e fokus döner.
   close(): void {
     if (this.root.hidden) return;
     this.root.hidden = true;
@@ -62,11 +65,12 @@ export class MarketScreen {
     this.options.onClose?.();
   }
 
-  /** Re-read the profile after the host completes a purchase. */
+  // Satın alma sonrası profile değişikliklerini yeniden okur.
   refresh(): void {
     if (!this.root.hidden) this.render();
   }
 
+  // Event listener'ları kaldırıp ekranı DOM'dan çıkarır.
   destroy(): void {
     bus.off(GameEvent.ProfileChanged, this.onProfileChanged);
     this.root.removeEventListener('click', this.onClick);
@@ -74,6 +78,7 @@ export class MarketScreen {
     this.root.remove();
   }
 
+  // Kategori/satın alma/kapatma buton tıklamalarını ve aksiyonları işler.
   private readonly onClick = (event: MouseEvent): void => {
     const target = (event.target as HTMLElement).closest<HTMLElement>('[data-action]');
     if (!target || !this.root.contains(target)) return;
@@ -106,10 +111,12 @@ export class MarketScreen {
     }
   };
 
+  // Escape tuşu basıldığında market'i kapatır.
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') this.close();
   };
 
+  // Market kategorisini ve ürünlerini HTML'den render eder.
   private render(): void {
     const profile = this.getProfile();
     // Cosmetic ownership comes straight from the profile; merge over any host-supplied ids.
@@ -158,6 +165,7 @@ export class MarketScreen {
   }
 }
 
+// Ürün kartı HTML'i oluşturur (ikon, ad, açıklama, fiyat).
 function renderItem(view: ShopItemView): string {
   const { item, state } = view;
   const isOwned = state === 'owned';
@@ -187,16 +195,19 @@ function renderItem(view: ShopItemView): string {
   </article>`;
 }
 
+// Kategori ID'sine ait Türkçe başlığını döner.
 function categoryTitle(category: ShopCategory): string {
   if (category === 'cards') return 'Yetenek kartları';
   if (category === 'boosts') return 'Tek koşuluk boostlar';
   return 'Aracına stil kat';
 }
 
+// Para birimi türüne ait emoji'yi döner.
 function currencyIcon(currency: 'coins' | 'gems'): string {
   return currency === 'coins' ? '🪙' : '💎';
 }
 
+// Ürün nadirliğine ait Türkçe etiketini döner.
 function rarityLabel(rarity: string): string {
   const labels: Record<string, string> = {
     common: 'SIRADAN',
@@ -207,16 +218,19 @@ function rarityLabel(rarity: string): string {
   return labels[rarity] ?? rarity.toUpperCase();
 }
 
+// Sayıyı Türkçe format'ında gösterir (binlik ayracı).
 function formatNumber(value: number): string {
   return new Intl.NumberFormat('tr-TR').format(value);
 }
 
+// HTML karakterlerini escape ederek XSS'den korur.
 function escapeHtml(value: string): string {
   const element = document.createElement('span');
   element.textContent = value;
   return element.innerHTML;
 }
 
+// Market CSS stillerini document'e enjekte eder.
 function installStyles(): void {
   if (document.getElementById(STYLE_ID)) return;
   const style = document.createElement('style');

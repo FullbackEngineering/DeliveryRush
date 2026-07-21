@@ -45,6 +45,7 @@ const BY_ID: Record<string, VehicleModelSpec> = {
   starter: SCOOTER,
 };
 
+// Araç kimliğine göre model spesifikasyonunu döndürür (başlık ise araba).
 /** Model spec for a vehicle id (defaults to the shared car). */
 export function modelFor(id: string): VehicleModelSpec {
   return BY_ID[id] ?? CAR;

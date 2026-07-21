@@ -16,6 +16,7 @@ import {
  * receive whatever implementation was registered — mocks today, real backends
  * later — without any call-site changes.
  */
+// Sahte hizmet implementasyonlarını başlatır.
 class ServiceLocatorImpl {
   leaderboard: ILeaderboardService = new MockLeaderboardService();
   cloudSave: ICloudSaveService = new MockCloudSaveService();

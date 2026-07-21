@@ -12,7 +12,7 @@ import { bus, GameEvent } from '@/core/EventBus';
 const ICON_SIZE = 128;
 const iconCache = new Map<string, THREE.CanvasTexture>();
 
-/** Emoji → billboard sprite texture (cached per glyph, shared across markers). */
+// Emoji'yi billboard dokusuna çevirir, önbelleğe alır
 function iconTexture(emoji: string): THREE.CanvasTexture {
   let tex = iconCache.get(emoji);
   if (tex) return tex;
@@ -30,19 +30,8 @@ function iconTexture(emoji: string): THREE.CanvasTexture {
   return tex;
 }
 
-/**
- * Points of Interest for SERBEST: fixed restaurant/cafe/cargo (pickup) and
- * home/office (drop-off) buildings placed on their own reserved plots (see
- * `Grid.plotRect` + `CityView`'s `reserved` param — no overlap with random
- * buildings). Every POI is always dimly visible (landmark + billboarded emoji
- * icon + a soft ground ring) so the city reads as full of places; the active
- * job's current target additionally gets a bright pulsing `Beacon3D` (the same
- * look RUSH uses for its single order). A second, dimmer beacon pulses on
- * whichever source POI the player is approaching-but-still-moving toward, cued
- * by `JobBoard`'s stop-to-order zone events (`GameEvent.StopZoneEnter/Exit`) —
- * the "🛑 drive up and stop to order" world hint.
- */
 export class PoiSystem {
+  // İlgi noktalarını yönetir, işaret ve simgeleri gösterir
   readonly group = new THREE.Group();
   list: Poi[] = [];
   /** `"col,row"` plot keys occupied by a POI — pass to `new CityView(grid, rng, reserved)`. */
@@ -53,28 +42,29 @@ export class PoiSystem {
   private hint = new Beacon3D();
   private t = 0;
 
+  // Başlatır, otobüs olaylarına abone olur
   constructor() {
     this.group.add(this.target.group, this.hint.group);
     bus.on(GameEvent.StopZoneEnter, this.onHintEnter);
     bus.on(GameEvent.StopZoneExit, this.onHintExit);
   }
 
+  // İpucu işaretini POI'ye gösterir
   private onHintEnter = (poi: Poi): void => {
     this.hint.set(poi.x, poi.z, poi.color);
   };
+  // İpucu işaretini gizler
   private onHintExit = (): void => {
     this.hint.hide();
   };
 
-  /** Drop bus subscriptions (world teardown — not currently invoked since mode
-   * switches reload the page, but kept for correctness/future in-place resets). */
+  // Otobüs aboneliklerini temizler
   destroy(): void {
     bus.off(GameEvent.StopZoneEnter, this.onHintEnter);
     bus.off(GameEvent.StopZoneExit, this.onHintExit);
   }
 
-  /** Scatter `count` POIs across the grid's interior, spaced apart, each on its
-   * own reserved plot. Call once, before building `CityView` with `this.reserved`. */
+  // POI'leri ızgaraya yerleştirir, binalarla çakışmayacak şekilde
   place(grid: Grid, rng: Rng, count: number = PoiSpawn.count): void {
     const candidates: Array<{ col: number; row: number }> = [];
     for (let c = 1; c < grid.cols - 1; c++) {
@@ -166,7 +156,7 @@ export class PoiSystem {
     );
   }
 
-  /** Nearest POI to (x,z), optionally filtered (e.g. `p => p.isSource`). */
+  // Konuma en yakın POI'yi bulur, isteğe bağlı filtrele
   nearest(x: number, z: number, filter?: (p: Poi) => boolean): Poi | null {
     let best: Poi | null = null;
     let bestD = Infinity;
@@ -178,7 +168,7 @@ export class PoiSystem {
     return best;
   }
 
-  /** The POI within arrival range (`Nav.reachM`) of (x,z), if any. */
+  // Ulaşım aralığında POI varsa döndürür
   reachAt(x: number, z: number): Poi | null {
     for (const p of this.list) {
       if (Math.hypot(p.x - x, p.z - z) <= Nav.reachM) return p;
@@ -186,12 +176,13 @@ export class PoiSystem {
     return null;
   }
 
-  /** Show/hide the bright active-target beacon (reused `Beacon3D` styling) at a POI. */
+  // POI'de hedef işaretini gösterir/gizler
   highlightTarget(poi: Poi | null, color: number): void {
     if (poi) this.target.set(poi.x, poi.z, color);
     else this.target.hide();
   }
 
+  // İşaretleri ve simge animasyonlarını günceller
   update(dt: number): void {
     this.t += dt;
     this.target.update(dt);

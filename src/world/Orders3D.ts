@@ -12,7 +12,7 @@ import { NavArrow } from '@/world/NavArrow';
 export type OrderEvent = 'none' | 'pickup' | 'deliver' | 'expire';
 
 let beamTex: THREE.CanvasTexture | null = null;
-/** Shared vertical-gradient sprite texture: bright at the base, fading up + at the sides. */
+// Işın dokusu oluşturur: tabanda parlak, kenarlardan solarlanmış
 function makeBeamTexture(): THREE.CanvasTexture {
   if (beamTex) return beamTex;
   const w = 64, h = 256;
@@ -37,14 +37,8 @@ function makeBeamTexture(): THREE.CanvasTexture {
   return beamTex;
 }
 
-/**
- * A world beacon: a pulsing flat ground ring, a tall billboard light beam (glows
- * over the buildings, always faces camera), and a spinning faceted gem marker.
- * Geometry-only, so it renders identically everywhere (no emoji-font reliance).
- * One instance is reused for the pickup, another for the dropoff. Exported so
- * SERBEST's job-board visual layer can reuse the exact same active-target look.
- */
 export class Beacon3D {
+  // Başlatır, halka ışını ve mücevheri oluşturur
   readonly group = new THREE.Group();
   private ring: THREE.Mesh;
   private beam: THREE.Sprite;
@@ -94,6 +88,7 @@ export class Beacon3D {
     this.group.visible = false;
   }
 
+  // İşaret konumunu ve rengini ayarlar, gösterilir
   set(x: number, z: number, color: number): void {
     this.group.position.set(x, 0, z);
     const col = new THREE.Color(color);
@@ -106,10 +101,12 @@ export class Beacon3D {
     this.group.visible = true;
   }
 
+  // İşareti gizler
   hide(): void {
     this.group.visible = false;
   }
 
+  // İşareti günceller, parçacık sistemini canlandırır
   update(dt: number): void {
     if (!this.group.visible) return;
     this.t += dt;
@@ -134,14 +131,8 @@ export class Beacon3D {
   }
 }
 
-/**
- * Owns the single active delivery in the 3D world: picks a pickup→dropoff route
- * near the player, shows beacons + a nav arrow, tracks the per-order timer, and
- * reports pickup/deliver/expire on the bus (same events as the old 2D system, so
- * RunState/HUD/audio are unchanged). Clears `current` BEFORE emitting deliver/
- * expire so the handler can spawn the next order without it being wiped.
- */
 export class Orders3D {
+  // Aktif teslimatı yönetir, işaret ve okları gösterir, zamanlayıcı tutar
   readonly group = new THREE.Group();
   current: Order | null = null;
 
@@ -153,6 +144,7 @@ export class Orders3D {
   private drop = new Beacon3D();
   private arrow = new NavArrow();
 
+  // Başlatır, işaret ve ok sistemini kurar
   constructor(private grid: Grid, private rng: Rng) {
     this.group.add(this.pickup.group, this.drop.group, this.arrow.group);
   }
@@ -164,7 +156,7 @@ export class Orders3D {
     return Math.max(0, this.timer);
   }
 
-  /** Spawn a new order near the player (world XZ). */
+  // Oyuncunun yakınına yeni sipariş oluşturur
   spawn(px: number, pz: number, vipChance: number, timeLimit: number): Order {
     const pc = clamp(Math.round(px / this.grid.block), 1, this.grid.cols - 1);
     const pr = clamp(Math.round(pz / this.grid.block), 1, this.grid.rows - 1);
@@ -198,7 +190,7 @@ export class Orders3D {
     return this.current;
   }
 
-  /** Advance timer + beacon animation + arrow. Returns what happened this frame. */
+  // Zamanlayıcı ve animasyonları günceller, olayları rapor eder
   update(dtMs: number, px: number, pz: number, yaw: number): OrderEvent {
     const dt = dtMs / 1000;
     this.pickup.update(dt);
@@ -244,7 +236,7 @@ export class Orders3D {
     return 'none';
   }
 
-  /** A road intersection whose block-distance from (col,row) is in [min,max]. */
+  // Belirtilen aralıkta blok mesafeli yol düğümü seçer
   private pickNode(col: number, row: number, min: number, max: number): { col: number; row: number } {
     for (let tries = 0; tries < 24; tries++) {
       const dc = this.rng.int(-max, max);
@@ -260,12 +252,14 @@ export class Orders3D {
     return { col: c, row };
   }
 
+  // Tüm işaret ve okları gizler
   private hideAll(): void {
     this.pickup.hide();
     this.drop.hide();
     this.arrow.hide();
   }
 
+  // Tüm siparişleri temizler, durumu sıfırlar
   reset(): void {
     this.hideAll();
     this.current = null;

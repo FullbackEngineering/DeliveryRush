@@ -19,12 +19,14 @@ export class CarPreview {
    *  call can detect it's stale and no-op instead of racing the current one. */
   private reqId = 0;
 
+  // Sahne katmanını ve döner tutucuyu kurar, platforma ekler
   constructor(scene: THREE.Scene) {
     this.group.add(makePlatform());
     this.group.add(this.holder);
     scene.add(this.group);
   }
 
+  // Aracı yükler, boyuyor ve sahneye ekler; öncekini temizler
   async setCar(def: VehicleDef): Promise<void> {
     const myReq = ++this.reqId;
     const spec = modelFor(def.id);
@@ -45,16 +47,18 @@ export class CarPreview {
     this.holder.add(carGroup);
   }
 
-  /** Spin the car holder about Y. */
+  // Aracı Y etrafında döndürür (her kareyi açı hızıyla)
   update(dt: number): void {
     this.holder.rotation.y += dt * Garage.spinSpeed;
   }
 
+  // Aracı ve grup kaynaklarını temizler
   dispose(): void {
     this.disposeCar();
     this.group.parent?.remove(this.group);
   }
 
+  // Saklanan aracın geometrisini ve materyallerini serbest bırakır
   private disposeCar(): void {
     if (!this.car) return;
     const dead = this.car;
@@ -71,7 +75,7 @@ export class CarPreview {
   }
 }
 
-/** Dispose a material and any textures it holds (safe on any material type). */
+// Materyali ve sahip olduğu dokuları serbest bırakır
 function disposeMaterial(mat: THREE.Material): void {
   const m = mat as unknown as Record<string, unknown>;
   for (const key of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap']) {
@@ -80,7 +84,7 @@ function disposeMaterial(mat: THREE.Material): void {
   mat.dispose();
 }
 
-/** A low showroom disc + a soft glowing ring so the car sits on something. */
+// Gösteri platformu: düşük disk ve yumuşak parlayan halka
 function makePlatform(): THREE.Group {
   const g = new THREE.Group();
   const disc = new THREE.Mesh(

@@ -26,16 +26,8 @@ interface Cop {
   fineCooldown: number; // seconds until this cop may fine again
 }
 
-/**
- * SERBEST police, speeding & fines. A few patrol cars (the `car_cop.glb` model)
- * seek roving waypoints on the road grid. Flooring it past one on a normal street
- * — or crashing into traffic beside one — earns a coin fine and a short, escapable
- * chase: the triggering cop (plus any nearby) switches to pursuit, and you escape
- * by getting `escapeDist` away from every chasing cop for `escapeSec`. Deliberately
- * minimal & fair (small fines, wide avenues let you legally floor it, clear
- * feedback). All numbers in `Balance.Police`; coins mutate only via `Profile`.
- */
 export class Police {
+  // Polis devriyelerini ve kovalamaca sistemini yönetir
   readonly group = new THREE.Group();
 
   private cops: Cop[] = [];
@@ -47,6 +39,7 @@ export class Police {
   private px = 0;
   private pz = 0;
 
+  // Başlatır, polis arabalarını ve devriye sistemini kurar
   constructor(
     private grid: Grid,
     private rng: Rng,
@@ -62,14 +55,14 @@ export class Police {
     bus.on(GameEvent.Crash, this.onCrash);
   }
 
-  /** Drop the crash subscription (world teardown / future in-place reset). */
+  // Çarpışma olayı aboneliğini temizler
   destroy(): void {
     bus.off(GameEvent.Crash, this.onCrash);
   }
 
   get isChasing(): boolean { return this.chasing; }
 
-  /** Stable patrol snapshot for browser playtests and tuning diagnostics. */
+  // Polis durumunun hata ayıklama bilgisini döndürür
   debugState(): {
     chasing: boolean;
     patrols: number;
@@ -96,7 +89,7 @@ export class Police {
     };
   }
 
-  // --- Per-frame ------------------------------------------------------------
+  // Her kare polis hareketini günceller, kovalama kurallarını kontrol eder
   update(dt: number, vehicle: Vehicle3D, live: boolean): void {
     this.t += dt;
     this.px = vehicle.x;
@@ -143,7 +136,7 @@ export class Police {
     }
   }
 
-  // --- Chase lifecycle ------------------------------------------------------
+  // Kovalamacayı başlatır, para cezası veriri ve yakın polisleri çağırır
   private startChase(cop: Cop, reason: 'speeding' | 'crash', amount: number): void {
     Profile.addCoins(-amount);
     bus.emit(GameEvent.PoliceFine, amount, reason);
@@ -161,6 +154,7 @@ export class Police {
     bus.emit(GameEvent.ChaseStarted);
   }
 
+  // Kovalamacayı sonlandırır, polisleri devriyeye döndürür
   private endChase(): void {
     this.chasing = false;
     this.escapeTimer = 0;
@@ -172,6 +166,7 @@ export class Police {
     bus.emit(GameEvent.ChaseEnded);
   }
 
+  // Çarpışma olayına yanıt veriri, yakındaki polisi cezayı verir
   private onCrash = (): void => {
     if (!this.live || this.chasing) return;
     let best: Cop | null = null;
@@ -184,14 +179,13 @@ export class Police {
     if (best) this.startChase(best, 'crash', P.crashFine);
   };
 
-  // --- Rules ----------------------------------------------------------------
+  // Aracın hız limitini aşıp aşmadığını kontrol eder
   private isSpeeding(vehicle: Vehicle3D): boolean {
     const limit = this.onAvenue(vehicle.x, vehicle.z) ? P.avenueLimitKmh : P.streetLimitKmh;
     return vehicle.speedKmh > limit;
   }
 
-  /** True when the player is driving on a wide avenue (arterial), where a higher
-   *  limit applies — so avenues are the legal "floor it" lanes. */
+  // Oyuncunun geniş caddede olup olmadığını kontrol eder
   private onAvenue(x: number, z: number): boolean {
     const b = this.grid.block;
     const colLine = Math.round(x / b);
@@ -201,9 +195,7 @@ export class Police {
     return onV || onH;
   }
 
-  // --- Movement -------------------------------------------------------------
-  /** Seek (targetX,targetZ) at `speed`, turning toward it and wall-sliding on the
-   *  road grid — the same corridor collision the player uses, so cops stay on roads. */
+  // Polisi hedefe doğru hareket ettirir, yollar üzerinde kalması için
   private moveCop(cop: Cop, dt: number, targetX: number, targetZ: number, speed: number): void {
     const dx = targetX - cop.x;
     const dz = targetZ - cop.z;
@@ -222,7 +214,7 @@ export class Police {
     cop.object.rotation.y = cop.yaw;
   }
 
-  /** Patrol uses the exact same straight, right-hand lane model as Traffic3D. */
+  // Polis devriyesini günceller, trafik kurallarına uyar
   private updatePatrol(cop: Cop, dt: number, vehicle: Vehicle3D): void {
     const distance = Math.hypot(cop.x - this.px, cop.z - this.pz);
     const offWorld = cop.x < -20 || cop.x > this.grid.worldW + 20
@@ -271,6 +263,7 @@ export class Police {
     this.syncPatrolPose(cop);
   }
 
+  // Polisi devriye konumuna yerleştirir, rota başlatır
   private spawnPatrol(cop: Cop, anchorX?: number, anchorZ?: number): void {
     cop.axis = this.rng.chance(0.5) ? 'z' : 'x';
     cop.dir = this.rng.chance(0.5) ? 1 : -1;
@@ -295,7 +288,7 @@ export class Police {
     this.syncPatrolPose(cop);
   }
 
-  /** Snap a chase car back to the closest legal lane without a visible teleport. */
+  // Kovalama sonrası polisi en yakın laneye geri koyar
   private resumePatrol(cop: Cop): void {
     const b = this.grid.block;
     const col = clamp(Math.round(cop.x / b), 1, this.grid.cols - 1);
@@ -313,6 +306,7 @@ export class Police {
     this.syncPatrolPose(cop);
   }
 
+  // Polis konumunu ve yönelimini devriye parametrelerine eşitler
   private syncPatrolPose(cop: Cop): void {
     cop.x = cop.axis === 'z' ? cop.line - cop.dir * cop.laneHalf : cop.pos;
     cop.z = cop.axis === 'z' ? cop.pos : cop.line + cop.dir * cop.laneHalf;
@@ -323,6 +317,7 @@ export class Police {
     cop.object.rotation.y = cop.yaw;
   }
 
+  // Kırmızı ışık durma konumunu hesaplar, varsa döndürür
   private redLightStop(cop: Cop): { position: number; distance: number } | null {
     if (!this.signals || this.signals.colorFor(cop.axis) === 'green') return null;
     const block = this.grid.block;
@@ -341,6 +336,7 @@ export class Police {
     return { position, distance };
   }
 
+  // Öndeki poliye olan mesafeyi hesaplar
   private distanceToLeadCop(cop: Cop): number | null {
     let nearest = Infinity;
     for (const other of this.cops) {
@@ -352,6 +348,7 @@ export class Police {
     return Number.isFinite(nearest) ? nearest : null;
   }
 
+  // Oyuncu araçtan kaçınmak için polis durma konumunu hesaplar
   private playerStop(cop: Cop, vehicle: Vehicle3D): { gap: number; position: number } | null {
     const sin = Math.abs(Math.sin(vehicle.yaw));
     const cos = Math.abs(Math.cos(vehicle.yaw));
@@ -375,7 +372,7 @@ export class Police {
     };
   }
 
-  // --- Visuals --------------------------------------------------------------
+  // Polis ışıklarını kovalama durumuna göre güncelleştirir
   private updateLights(cop: Cop): void {
     if (cop.state !== 'chase') {
       cop.matL.emissiveIntensity = 0.12;
@@ -387,6 +384,7 @@ export class Police {
     cop.matR.emissiveIntensity = on ? 0.08 : 1.7;
   }
 
+  // Polis araç modelini veya fallback kutusunu oluşturur
   private buildCop(template: THREE.Object3D | null): Cop {
     const object = new THREE.Group();
     if (template) object.add(template.clone(true));
@@ -406,8 +404,7 @@ export class Police {
     };
   }
 
-  /** Procedural white police car — fallback when the cop GLB isn't available
-   *  (offline/headless). Same footprint as `Vehicle3D`'s box car. */
+  // Kutulardan yapılmış yedek polis aracı oluşturur
   private buildBoxCop(g: THREE.Group): void {
     const box = (w: number, h: number, d: number, color: number, x: number, y: number, z: number) => {
       const m = new THREE.Mesh(

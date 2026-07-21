@@ -7,6 +7,7 @@
 export class ModeSelect {
   private root: HTMLElement;
 
+  // Mod seçim ekranını kurar ve mod seçim butonlarına listener ekler.
   constructor(parent: HTMLElement, onPick: (mode: 'rush' | 'free' | 'garage' | 'market') => void) {
     injectStyle();
     this.root = document.createElement('div');
@@ -28,6 +29,7 @@ export class ModeSelect {
       .addEventListener('click', () => pick('market'));
   }
 
+  // DOM'u kaldırır.
   destroy(): void {
     this.root.remove();
   }
@@ -76,6 +78,7 @@ const TEMPLATE = `
     <div class="dr-modes-foot">Geliştirme sürümü · daha fazlası geliyor</div>
   </div>`;
 
+// Mod seçim ekranı CSS stillerini document'e enjekte eder.
 let styled = false;
 function injectStyle(): void {
   if (styled) return;

@@ -36,14 +36,8 @@ interface Pedestrian {
   slot: number;
 }
 
-/**
- * Pooled low-poly AI traffic. Cars cruise straight lanes on the road grid (right-
- * hand offset so opposing lanes separate), recycling when they leave a radius
- * around the player. Rendered as just two InstancedMeshes (bodies + cabins) — the
- * whole fleet costs 2 draw calls. Colliding with the player triggers a crash +
- * combo break; a fast close pass fires a near-miss for juice.
- */
 export class Traffic3D {
+  // AI trafik aracı havuzunu yönetir, sahneyi işlenmiş mesh'lerle render eder
   readonly group = new THREE.Group();
 
   private cars: Car[] = [];
@@ -77,6 +71,7 @@ export class Traffic3D {
   private col = new THREE.Color();
   private zero = new THREE.Vector3(0, 0, 0);
 
+  // Başlatır, ağaç modelleri ve trafik havuzunu kurar
   constructor(private grid: Grid, private rng: Rng) {
     const n = Traffic.poolSize;
     this.bodies = new THREE.InstancedMesh(
@@ -155,18 +150,19 @@ export class Traffic3D {
     void this.loadTrafficModels();
   }
 
-  /** Ramp active-car count with run difficulty (0..1). */
+  // Zorluk seviyesine göre trafik sayısını ayarlar
   setDifficulty(d: number): void {
     this.target = Math.round(World.trafficBaseCount + (World.trafficMaxCount - World.trafficBaseCount) * d);
   }
 
+  // Trafik havuzunu sıfırlar, işaretleri temizler
   reset(): void {
     for (const c of this.cars) c.active = false;
     this.signals.reset();
     this.hideAll();
   }
 
-  /** Stable browser-playtest snapshot of traffic-rule state. */
+  // Trafik kuralları durumunun hata ayıklama bilgisini döndürür
   debugState(): {
     vertical: SignalColor;
     horizontal: SignalColor;
@@ -201,6 +197,7 @@ export class Traffic3D {
     };
   }
 
+  // Trafik havuzunu günceller, çarpışmaları ve animasyonları işler
   update(dt: number, vehicle: Vehicle3D, live: boolean): void {
     const px = vehicle.x, pz = vehicle.z;
     let activeCount = 0;
@@ -309,6 +306,7 @@ export class Traffic3D {
     this.updatePedestrians(dt);
   }
 
+  // Araçyı oyuncunun yakınında yeni konuma yerleştirir
   private respawn(car: Car, px: number, pz: number): void {
     const carIndex = this.cars.indexOf(car);
     if (this.trafficModelsReady && carIndex >= 0) this.hideTrafficModelSlot(carIndex, car.variant);
@@ -337,6 +335,7 @@ export class Traffic3D {
     }
   }
 
+  // Araba devriye parametrelerinden dünya konumunu hesaplar
   private carWorldPose(car: Car): { x: number; z: number; yaw: number } {
     // Right-hand traffic in XZ: right = forward × up. Therefore +Z uses -X,
     // -Z uses +X, +X uses +Z, and -X uses -Z. `laneHalf` is exactly the centre
@@ -350,18 +349,19 @@ export class Traffic3D {
     };
   }
 
-  /** A road line index a few blocks from `coord`, kept interior. */
+  // Koordinattan birkaç blok uzak içeride bir yol çizgisi seçer
   private pickLineIndex(coord: number): number {
     const k = Math.round(coord / this.grid.block) + this.rng.int(-3, 3);
     return Math.max(1, Math.min(this.grid.cols - 1, k));
   }
 
-  /** A spawn distance ahead/behind the player, never right on top of them. */
+  // Oyuncudan uzak yaratılma mesafesi hesaplar
   private spawnOffset(): number {
     const d = this.rng.range(60, World.trafficRadius * 0.85);
     return this.rng.chance(0.5) ? d : -d;
   }
 
+  // Araba örnek matrisini konumuna göre ayarlar
   private writeCar(i: number, x: number, z: number, yaw: number): void {
     this.matricesDirty = true;
     this.q.setFromEuler(this.e.set(0, yaw, 0));
@@ -385,6 +385,7 @@ export class Traffic3D {
     this.vehicleLights.setMatrixAt(i, this.m);
   }
 
+  // Kırmızı ışık durma konumunu hesaplar, varsa döndürür
   private redLightStop(car: Car): { position: number; distance: number } | null {
     const color = this.signals.colorFor(car.axis);
     if (color === 'green') return null;
@@ -404,6 +405,7 @@ export class Traffic3D {
     return { position, distance };
   }
 
+  // Öndeki arabaya olan mesafeyi hesaplar
   private distanceToLeadCar(car: Car): number | null {
     let nearest = Infinity;
     for (const other of this.cars) {
@@ -415,12 +417,7 @@ export class Traffic3D {
     return Number.isFinite(nearest) ? nearest : null;
   }
 
-  /**
-   * Return the safe stop point when the player occupies this AI car's forward
-   * corridor. The player's oriented rectangle is projected onto the AI road axis,
-   * so yielding works both when both cars share a lane and when the player sits
-   * sideways across that lane at an intersection.
-   */
+  // Oyuncu araçtan kaçınmak için AI durma konumunu hesaplar
   private playerStop(car: Car, vehicle: Vehicle3D): { gap: number; position: number } | null {
     const pose = this.carWorldPose(car);
     const sin = Math.abs(Math.sin(vehicle.yaw));
@@ -446,6 +443,7 @@ export class Traffic3D {
     };
   }
 
+  // Yaya animasyonlarını ve matrislerini günceller
   private updatePedestrians(dt: number): void {
     if (this.pedestrians.length === 0) return; // nothing to (re)pose or flush
     const bodyScale = new THREE.Vector3(1, 1, 1);
@@ -479,6 +477,7 @@ export class Traffic3D {
     }
   }
 
+  // Yaya modelleri yükler, fallback'i değiştirir
   private async loadPedestrianModels(): Promise<void> {
     const urls = [pedPhoneWalkUrl, pedMale03Url];
     try {
@@ -509,6 +508,7 @@ export class Traffic3D {
     }
   }
 
+  // Trafik aracı modelleri yükler, kutularla değiştirir
   private async loadTrafficModels(): Promise<void> {
     try {
       const pack = await loadGLB(trafficPackUrl);
@@ -545,6 +545,7 @@ export class Traffic3D {
     }
   }
 
+  // Trafik modeli örneğini görüntü dışına taşır
   private hideTrafficModelSlot(index: number, variant: number): void {
     const mesh = this.trafficModelMeshes[variant];
     if (!mesh) return;
@@ -552,6 +553,7 @@ export class Traffic3D {
     mesh.setMatrixAt(index, this.m);
   }
 
+  // Görünür model sayısını hesaplar (hata ayıklama)
   private visibleModelCount(index: number): number {
     let count = 0;
     for (const mesh of this.trafficModelMeshes) {
@@ -565,6 +567,7 @@ export class Traffic3D {
     return count;
   }
 
+  // Tüm araçları ve yayaları görüntü dışına taşır
   private hideAll(): void {
     this.m.compose(this.v.set(0, -1000, 0), this.q.identity(), this.zero);
     for (let i = 0; i < this.cars.length; i++) {
@@ -580,7 +583,7 @@ export class Traffic3D {
   }
 }
 
-/** Bake one named vehicle from the supplied traffic pack into a normalized instanced mesh. */
+// Trafik paketi aracını hazırlar, norma­lizasyon eder
 function prepareTrafficAsset(source: THREE.Mesh, count: number): THREE.InstancedMesh {
   const geometry = floatGeometry(source.geometry, source.matrixWorld);
   // The optimized pack keeps each vehicle's nose on local +Z, matching runtime traffic.
@@ -613,7 +616,7 @@ function prepareTrafficAsset(source: THREE.Mesh, count: number): THREE.Instanced
   return mesh;
 }
 
-/** Bake an optimized GLB hierarchy into one grounded, two-metre-tall mesh. */
+// Yaya GLB'sini birleştirilmiş mesh'e hazırlar
 function preparePedestrian(model: THREE.Group): { geometry: THREE.BufferGeometry; material: THREE.Material } {
   model.updateMatrixWorld(true);
   const parts: THREE.BufferGeometry[] = [];
@@ -649,7 +652,7 @@ function preparePedestrian(model: THREE.Group): { geometry: THREE.BufferGeometry
   return { geometry, material };
 }
 
-/** Rebuild quantized meshopt attributes as floats before applying world matrices. */
+// Meshopt niteliklerini yeniden türetir, world matrisi uygulanmadan önce
 function floatGeometry(source: THREE.BufferGeometry, matrix: THREE.Matrix4): THREE.BufferGeometry {
   const geometry = new THREE.BufferGeometry();
   const position = source.getAttribute('position');
@@ -675,6 +678,7 @@ function floatGeometry(source: THREE.BufferGeometry, matrix: THREE.Matrix4): THR
   return geometry;
 }
 
+// Renklendirilmiş kutu geometrisi oluşturur
 function coloredBox(color: number): THREE.BoxGeometry {
   const geometry = new THREE.BoxGeometry(1.25, 0.16, 0.08);
   const colors = new Float32Array(geometry.getAttribute('position').count * 3);

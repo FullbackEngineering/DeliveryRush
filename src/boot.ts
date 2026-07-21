@@ -21,6 +21,7 @@ import { WorldMap, WorldMapMarker } from '@/ui/WorldMap';
 import { ModeSelect } from '@/ui/ModeSelect';
 import { GarageScreen } from '@/ui/GarageScreen';
 import { MarketScreen } from '@/ui/MarketScreen';
+import { GemShop } from '@/ui/GemShop';
 import { CarPreview } from '@/world/CarPreview';
 import { RunController } from '@/systems/RunController';
 import { JobBoard } from '@/systems/JobBoard';
@@ -31,6 +32,8 @@ import { Profile } from '@/managers/ProfileStore';
 import { VEHICLE_MAP, VEHICLES, driveStatsAtLevel } from '@/data/vehicles';
 import { RUSH_CITY, FREE_CITY, Nav, Garage as GarageBalance } from '@/core/Balance';
 import { Palette } from '@/core/Palette';
+import { initGametegra } from '@/services/gametegra/gametegra';
+import { installRushGametegra, wrapRushRetry } from '@/services/gametegra/rushBridge';
 
 /**
  * Delivery Rush — Three.js core with a mode picker. RUSH is the 60-second delivery
@@ -77,6 +80,7 @@ const drive = driveStatsAtLevel(def, Profile.vehicleLevel(def.id));
 const fpsEl = document.getElementById('fps');
 const goMenu = () => { window.location.href = window.location.pathname; };
 
+// FPS ve render çağrılarını canlı aracın bilgisiyle günceller.
 /** Wire the shared dev/fps readout to a live vehicle. */
 function wireFps(vehicle: Vehicle3D): void {
   let acc = 0;
@@ -90,6 +94,7 @@ function wireFps(vehicle: Vehicle3D): void {
 }
 
 // --- RUSH: the tuned 60-second delivery sprint -----------------------------
+// 60 saniyelik teslimat koşuşu modunu başlatır: şehir, araç, siparişler, trafik.
 function startRush(): void {
   scene.fog = new THREE.Fog(0x9fd3ea, 140, 820);
   const grid = new Grid(RUSH_CITY);
@@ -113,7 +118,8 @@ function startRush(): void {
   bus.on(GameEvent.ControlThrottle, (on: boolean) => vehicle.setThrottle(run.running && on));
   bus.on(GameEvent.ControlReverse, (on: boolean) => vehicle.setReverse(run.running && on));
 
-  new Hud(ui, () => run.start(), goMenu);
+  installRushGametegra();
+  new Hud(ui, wrapRushRetry(() => run.start()), goMenu);
   const worldMap = new WorldMap({
     mount: ui,
     scene,
@@ -158,6 +164,7 @@ function startRush(): void {
 }
 
 // --- SERBEST: the large open city (free roam) ------------------------------
+// Geniş açık şehir modunu başlatır: POI'ler, iş paneli, polis, trafik.
 function startFree(): void {
   scene.fog = new THREE.Fog(0x9fd3ea, 220, 1600);
   const grid = new Grid(FREE_CITY);
@@ -271,6 +278,7 @@ function startFree(): void {
 }
 
 // --- GARAJ: the car gallery / showroom (browse, select, upgrade, unlock) ---
+// Araç galerisi modunu başlatır: dönen araba, istatistik çubukları.
 function startGarage(): void {
   scene.background = new THREE.Color(GarageBalance.bg);
   // Garage-only FOV override (wider than the shared 52° driving camera) — see the
@@ -308,10 +316,12 @@ function startGarage(): void {
 }
 
 // --- MARKET: cards / boosts / cosmetics shop (native DOM overlay) -----------
+// Pazar ekranını başlatır: kartlar, boost'lar, kozmetik öğeler.
 function startMarket(): void {
   game.start(); // render the sky behind the market overlay
   const market = new MarketScreen({ mount: ui, onClose: goMenu });
   market.open();
+  new GemShop(ui); // real-money gem packs + rewarded-ad gems (Gametegra IAP)
   // Harness hook (stable shape — mirrors the other modes).
   (window as unknown as Record<string, unknown>).__three = {
     market: true,
@@ -324,6 +334,7 @@ function startMarket(): void {
   };
 }
 
+// Oyun içi değişkenleri test harnesine window.__three aracılığıyla açığa çıkarır.
 /** Expose game internals for the headless playtest harness (shape stable across modes). */
 function exposeHarness(
   g: Game, vehicle: Vehicle3D, orders: Orders3D | null, traffic: Traffic3D,
@@ -381,6 +392,7 @@ function exposeHarness(
 // --- Route by ?mode= --------------------------------------------------------
 const mode = new URLSearchParams(window.location.search).get('mode');
 
+// Seçilen aracın GLB modelini yükler ve sürülebilir duruma hazırlar.
 /** Preload + prepare the SELECTED vehicle's template before spawning a drivable
  *  world. The starter loads the delivery scooter (with a procedural rider); the
  *  rest load the shared car GLB — see `data/vehicleModels.ts`. */
@@ -402,6 +414,7 @@ async function preloadCar(): Promise<void> {
   }
 }
 
+// Polis arabasının GLB modelini yükler ve hazırlar (SERBEST modu için).
 /** Preload + prepare the police-liveried cop template (SERBEST patrol cars).
  *  Keeps the original livery (no body tint); falls back to a procedural white car. */
 async function preloadCop(): Promise<void> {
@@ -419,6 +432,9 @@ async function preloadCop(): Promise<void> {
 }
 
 (async () => {
+  // Gametegra SuperApp bridge: applies safe-area insets immediately, then waits
+  // for the host (timeout-safe, inert no-op in a plain browser). Non-blocking.
+  void initGametegra();
   if (mode === 'rush' || mode === 'free') {
     await preloadCar();
     if (mode === 'free') await preloadCop(); // patrol police only exist in SERBEST

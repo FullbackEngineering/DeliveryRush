@@ -15,10 +15,12 @@ export class MockLeaderboardService implements ILeaderboardService {
     'NightRider', 'PizzaPro', 'RushHour', 'ComboQueen', 'DriftLord', 'ZoomZoom',
   ];
 
+  // Ofline test için sahte adları başlatır.
   async submitScore(_name: string, _score: number): Promise<void> {
     // no-op in mock
   }
 
+  // Kapsamına göre sahte sıralama listesi oluşturur ve oyuncunun puanını ekler.
   async getBoard(scope: LeaderboardScope, playerScore: number): Promise<LeaderboardEntry[]> {
     const seed = scope === 'weekly' ? 1.4 : scope === 'friends' ? 0.6 : 1;
     const entries: LeaderboardEntry[] = this.names.map((name, i) => ({
@@ -37,12 +39,15 @@ export class MockLeaderboardService implements ILeaderboardService {
 /** Cloud save backed by localStorage (stands in for a real cloud backend). */
 export class MockCloudSaveService implements ICloudSaveService {
   private readonly key = 'dr_cloud_save';
+  // localStorage'ı bulut kaydı alanı olarak başlatır.
   isAvailable(): boolean {
     return true;
   }
+  // localStorage'dan kaydedilmiş profili yükler.
   async load(): Promise<string | null> {
     return localStorage.getItem(this.key);
   }
+  // Profili localStorage'a kaydeder.
   async save(blob: string): Promise<void> {
     localStorage.setItem(this.key, blob);
   }
@@ -50,9 +55,11 @@ export class MockCloudSaveService implements ICloudSaveService {
 
 /** Always-ready ad that "succeeds" after a short simulated wait. */
 export class MockAdsService implements IAdsService {
+  // Her zaman reklam gösterilmeye hazır olduğunu döndürür.
   isReady(_placement: AdPlacement): boolean {
     return true;
   }
+  // Kısa bir gecikme sonra başarıyla tamamlanan sahte reklam gösterir.
   async show(_placement: AdPlacement): Promise<{ completed: boolean }> {
     await new Promise((r) => setTimeout(r, 400));
     return { completed: true };
@@ -61,6 +68,7 @@ export class MockAdsService implements IAdsService {
 
 /** Console-only analytics stub. */
 export class MockAnalyticsService implements IAnalyticsService {
+  // Geliştirme modunda olayları konsolda hata ayıkla olarak yazar.
   track(event: string, props?: Record<string, unknown>): void {
     if (import.meta.env?.DEV) console.debug('[analytics]', event, props ?? {});
   }

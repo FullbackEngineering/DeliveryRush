@@ -29,6 +29,7 @@ export class Hud {
   private lastOrderFrac = -1;
   private lastOrderUrgentShow = false;
 
+  // RUSH modu HUD DOM'unu (timer, coins, score, order card) ve event listener'larını kurar.
   constructor(parent: HTMLElement, private onRetry: () => void, private onMenu?: () => void) {
     injectStyle();
     this.root = document.createElement('div');
@@ -84,11 +85,13 @@ export class Hud {
     this.on(GameEvent.RunEnd, (s: RunSummary) => this.showResults(s));
   }
 
+  // Event bus dinleyicisi ekler ve temizlik için kayıt tutar.
   private on(evt: string, fn: (...a: any[]) => void): void {
     bus.on(evt, fn);
     this.handlers.push([evt, fn]);
   }
 
+  // Event listener'ları temizler ve DOM'u kaldırır.
   destroy(): void {
     for (const [evt, fn] of this.handlers) bus.off(evt, fn);
     this.handlers = [];
@@ -96,6 +99,7 @@ export class Hud {
   }
 
   // --- Renderers -----------------------------------------------------------
+  // HUD'ı başlangıç durumuna döner (coin, score, order gizleme vb).
   private reset(): void {
     this.els.coins.textContent = '0';
     this.els.score.textContent = '0';
@@ -109,6 +113,7 @@ export class Hud {
     this.lastOrderUrgentShow = false;
   }
 
+  // Geri sayım zamanını ve progress bar'ını günceller, zamanı azsa kırmızılaştırır.
   private setTimer(seconds: number, fraction: number): void {
     const s = Math.ceil(seconds);
     if (s !== this.lastSecondShown) {
@@ -127,6 +132,7 @@ export class Hud {
     }
   }
 
+  // Aktif siparişi gösterir (al/teslim durumuna göre VIP markaları ile).
   private setOrder(o: Order, pickedUp: boolean): void {
     this.els.orderIcon.textContent = o.icon;
     this.els.orderKind.textContent = o.vip ? `⭐ ${o.kind}` : o.kind;
@@ -142,6 +148,7 @@ export class Hud {
     this.els.order.classList.add('pop');
   }
 
+  // Sipariş geri sayım progress bar'ını ve aciliyet durumunu günceller.
   private setOrderTimer(fraction: number): void {
     const frac = Math.round(Math.max(0, fraction) * 1000);
     if (frac !== this.lastOrderFrac) {
@@ -155,6 +162,7 @@ export class Hud {
     }
   }
 
+  // Kombo popup'ını gösterir (animli kayan metin).
   private setCombo(streak: number, mult: number): void {
     if (streak <= 1) {
       this.els.combo.classList.remove('show');
@@ -166,16 +174,19 @@ export class Hud {
     this.els.combo.classList.add('show');
   }
 
+  // Sipariş teslim edilince ödül float text'i gösterir.
   private onDelivered(o: Order): void {
     this.els.order.classList.remove('show');
     this.floatText(`+${o.baseReward} 🪙`, '#37d67a');
   }
 
+  // Kaçırılan sipariş animasyonunu çalar.
   private flashMiss(): void {
     this.els.order.classList.remove('show');
     this.floatText('KAÇTI!', '#ef4444');
   }
 
+  // Animeli kayan metin üretir ve gösterir.
   private floatText(text: string, color: string): void {
     const el = document.createElement('div');
     el.className = 'dr-float';
@@ -185,6 +196,7 @@ export class Hud {
     setTimeout(() => el.remove(), 1100);
   }
 
+  // 3-2-1-GO sayma animasyonunu gösterir.
   private showCount(n: number | string): void {
     const el = this.els.count;
     el.textContent = String(n);
@@ -194,6 +206,7 @@ export class Hud {
     if (n === 'GO' || n === 'GO!') setTimeout(() => el.classList.remove('show'), 500);
   }
 
+  // Koşu sonu sonuç kartını (skor, teslimat, kombo, coin) gösterir.
   private showResults(s: RunSummary): void {
     this.els.order.classList.remove('show');
     this.els.combo.classList.remove('show');
@@ -204,6 +217,7 @@ export class Hud {
     this.els.results.classList.add('show');
   }
 
+  // Sonuç kartını gizler.
   private hideResults(): void {
     this.els.results.classList.remove('show');
   }
@@ -246,6 +260,7 @@ const TEMPLATE = `
     </div>
   </div>`;
 
+// RUSH HUD CSS stillerini document'e enjekte eder.
 let styled = false;
 function injectStyle(): void {
   if (styled) return;

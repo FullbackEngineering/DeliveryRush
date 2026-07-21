@@ -6,13 +6,8 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 export type RoadAxis = 'x' | 'z';
 export type SignalColor = 'green' | 'amber' | 'red';
 
-/**
- * Two-phase (N/S vs E/W) traffic-light network for the city grid: one signal
- * pair (housing + 3 lenses) per road approach at every interior intersection,
- * rendered as two InstancedMeshes. Owns its own green/amber/all-red cycle and
- * exposes the current color per axis so `Traffic3D` can gate AI braking.
- */
 export class TrafficSignals {
+  // Trafik ışıkları ağını yönetir, yeşil/amber/kırmızı döngüsü kontrol eder
   readonly housings: THREE.InstancedMesh;
   readonly lenses: THREE.InstancedMesh;
 
@@ -24,6 +19,7 @@ export class TrafficSignals {
   get vertical(): SignalColor { return this.colorZ; }
   get horizontal(): SignalColor { return this.colorX; }
 
+  // Başlatır, trafik ışıklarını ve konutlarını inşa eder
   constructor(grid: Grid) {
     const built = this.build(grid);
     this.housings = built.housings;
@@ -31,7 +27,7 @@ export class TrafficSignals {
     this.refresh();
   }
 
-  /** Restart the cycle (used on run reset). */
+  // Trafik ışık döngüsünü sıfırlar
   reset(): void {
     this.timer = 0;
     this.colorZ = 'green';
@@ -39,7 +35,7 @@ export class TrafficSignals {
     this.refresh();
   }
 
-  /** Advance the green/amber/all-red cycle; refreshes lens colors on change. */
+  // Trafik ışık döngüsünü ilerletir, renk değişimini işler
   update(dt: number): void {
     const green = TrafficRules.greenSeconds;
     const amber = TrafficRules.amberSeconds;
@@ -61,11 +57,12 @@ export class TrafficSignals {
     }
   }
 
-  /** Current color of the signal governing traffic on this road axis. */
+  // Belirtilen yol ekseninin trafik ışık rengini döndürür
   colorFor(axis: RoadAxis): SignalColor {
     return axis === 'z' ? this.colorZ : this.colorX;
   }
 
+  // Trafik ışıkları konutlarını ve lenslerini inşa eder
   private build(grid: Grid): { housings: THREE.InstancedMesh; lenses: THREE.InstancedMesh } {
     const pole = new THREE.CylinderGeometry(0.11, 0.14, 3.7, 6);
     pole.translate(0, 1.85, 0);
@@ -126,6 +123,7 @@ export class TrafficSignals {
     return { housings, lenses };
   }
 
+  // Lens renklerini mevcut döngü durumuna göre günceller
   private refresh(): void {
     const active = {
       red: new THREE.Color(0xff334c),

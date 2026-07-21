@@ -43,8 +43,10 @@ export class JobBoard {
    * closed until they leave the zone, so closing doesn't instantly reopen it. */
   private dismissedPoiId: number | null = null;
 
+  // Kurar: POI sistemi ve rastgele sayı üretecini depolar.
   constructor(private pois: PoiSystem, private rng: Rng) {}
 
+  // Kalan zamanın 0..1 oranını döndürür.
   get remainingFraction(): number {
     return this.active && this.active.timeLimit > 0
       ? clamp(this.remaining / this.active.timeLimit, 0, 1)
@@ -52,12 +54,14 @@ export class JobBoard {
   }
 
   /** All current offers sourced at `poi` (stop-to-order panel content). */
+  // Belirtilen POI'da teklif edilen işleri filtreler.
   ordersAt(poi: Poi): Job[] {
     return this.offered.filter((j) => j.source.id === poi.id);
   }
 
   /** Roll a fresh slate of `Econ.ordersPerPoiMin..Max` jobs per source POI.
    * Leaves `active` untouched — offers and the active job are independent. */
+  // Her kaynak POI'da yeni iş teklifleri üretir, bazılarını bonus ile işaretler.
   refresh(): void {
     this.ensureSourceAndDestCoverage();
     const sources = this.pois.list.filter((p) => p.isSource);
@@ -107,6 +111,7 @@ export class JobBoard {
    * missing role; it's a shared object (`this.pois.list`), so the flip also
    * fixes the stop-to-order zone (`tickStopZone`) and any other POI-role
    * lookups for the rest of the session. */
+  // En az bir kaynak ve bir hedef POI'sı olmasını garantiler.
   private ensureSourceAndDestCoverage(): void {
     const list = this.pois.list;
     if (list.length < 2) return; // fewer than 2 POIs: no pairing is possible regardless
@@ -117,6 +122,7 @@ export class JobBoard {
   }
 
   /** Accept an offered job as the single active job. Ignored if one's already active. */
+  // Bir işi kabul eder ve aktif hale getirir, başarısını döndürür.
   accept(id: number): boolean {
     if (this.active) return false;
     const idx = this.offered.findIndex((j) => j.id === id);
@@ -132,6 +138,7 @@ export class JobBoard {
   }
 
   /** Abandon the active job (small streak reset, no payout). */
+  // Aktif işi iptal eder, seriyi sıfırlar ve teklif listesini yenile zamanlar.
   cancel(): void {
     if (!this.active) return;
     const job = this.active;
@@ -144,6 +151,7 @@ export class JobBoard {
 
   /** Explicitly dismiss the open stop-to-order panel (close button / backdrop
    * tap). Stays closed until the player leaves the source's zone. */
+  // Durak-sipariş panelini kapatır, oyna bölgeden çıkana kadar kapalı tutar.
   closeStop(): void {
     if (!this.stoppedAt) return;
     this.dismissedPoiId = this.stoppedAt.id;
@@ -154,6 +162,7 @@ export class JobBoard {
   /** Advance the active job's timer + arrival checks, the stop-to-order zone
    * state machine, and re-roll offers on cadence while nothing is active. Call
    * every frame with the player's world XZ + current speed (km/h). */
+  // Aktif işin zamanlayıcısını ilerletir, varış kontrolü yapar ve teklif listesini yeniler.
   tick(dt: number, px: number, pz: number, speedKmh: number): void {
     if (!this.active) {
       this.refreshTimer += dt;
@@ -185,6 +194,7 @@ export class JobBoard {
    * order list (primary interaction); driving through above `stopThreshold`
    * never opens it. Hysteresis — stays open until the player leaves the zone
    * or dismisses it; leaving clears the dismiss-lock so returning re-triggers. */
+  // Durma bölgesini denetler, histerez tutar ve durak panelini açar/kapar.
   private tickStopZone(px: number, pz: number, speedKmh: number): void {
     const nearSource = this.pois.list.find(
       (p) => p.isSource && Math.hypot(p.x - px, p.z - pz) <= Nav.orderZoneRadius,
@@ -214,6 +224,7 @@ export class JobBoard {
     }
   }
 
+  // İşi teslim eder, geç kalma cezasını hesaplar ve seriyi güncelleştirir.
   private deliver(job: Job): void {
     const lateSeconds = Math.max(0, -this.remaining);
     const specialMul = job.special ? Econ.specialPenaltyMul : 1;

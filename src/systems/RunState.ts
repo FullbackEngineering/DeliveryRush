@@ -27,16 +27,19 @@ export class RunState {
   coinBonus = 1; // multiplier (1 = none)
   freeCrashes = 0; // remaining "free crash" charges
 
+  // Seri sayısıyla sınırlandırılan harita çarpanını döndürür.
   get multiplier(): number {
     return Math.max(1, Math.min(Scoring.comboCap, this.streak));
   }
 
   /** 0..1 difficulty based on deliveries completed. */
+  // Teslim edilen işler sayısına göre zorluk seviyesi (0..1) döndürür.
   get difficulty(): number {
     return Math.min(1, this.deliveries / Difficulty.rampDeliveries);
   }
 
   /** Time limit granted to a freshly spawned order (shrinks with difficulty). */
+  // Yeni işler için zaman limitini zorluk seviyesine uygun olarak döndürür.
   orderTimeLimit(): number {
     return Math.round(
       Difficulty.orderTimeStart -
@@ -44,6 +47,7 @@ export class RunState {
     );
   }
 
+  // Yeni işin VIP olma ihtimalini zorluk seviyesine uygun olarak döndürür.
   vipChance(): number {
     return (
       Difficulty.vipChanceStart +
@@ -51,6 +55,7 @@ export class RunState {
     );
   }
 
+  // İş teslimini işler, seriyi arttırır, paraları hesaplar ve sonucu döndürür.
   onDelivered(order: Order): DeliveryResult {
     this.streak += 1;
     this.maxStreak = Math.max(this.maxStreak, this.streak);
@@ -70,6 +75,7 @@ export class RunState {
   }
 
   /** @returns true if the combo actually broke (no free-crash charge). */
+  // Çarpışmayı işler, seriyi kırabilir, zamanı dökebilir; başarıyı döndürür.
   onCrash(): boolean {
     if (this.freeCrashes > 0) {
       this.freeCrashes -= 1;
@@ -85,6 +91,7 @@ export class RunState {
     return had;
   }
 
+  // Süre biten işi işler, seriyi kırabilir.
   onOrderExpired(): void {
     if (this.streak > 0) {
       this.streak = 0;
@@ -93,6 +100,7 @@ export class RunState {
     }
   }
 
+  // Koşu zamanlayıcısını ilerletir, biterse RunEnd olayı yaydır.
   tick(dtMs: number): void {
     if (this.ended) return;
     this.time -= dtMs / 1000;
@@ -106,6 +114,7 @@ export class RunState {
     bus.emit(GameEvent.RunTimer, this.time, this.time / Run.maxTime);
   }
 
+  // Koşu sonuçlarını (paraları, teslim işler, puan, en iyi seri) döndürür.
   summary() {
     return {
       coins: this.coinsThisRun,

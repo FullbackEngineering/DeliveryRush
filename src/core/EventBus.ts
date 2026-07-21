@@ -86,12 +86,15 @@ interface Listener {
 class Bus {
   private listeners = new Map<string, Listener[]>();
 
+  // Olay dinleyicisini kayıt eder; event ateşlendiğinde fn çalışır.
   on(event: string, fn: Handler, ctx?: unknown): this {
     return this.add(event, fn, ctx, false);
   }
+  // Bir kez çalışacak olay dinleyicisini kayıt eder, sonra kaldırır.
   once(event: string, fn: Handler, ctx?: unknown): this {
     return this.add(event, fn, ctx, true);
   }
+  // Dinleyiciyi iç haritaya ekler (once flağı ile).
   private add(event: string, fn: Handler, ctx: unknown, once: boolean): this {
     const arr = this.listeners.get(event);
     if (arr) arr.push({ fn, ctx, once });
@@ -99,6 +102,7 @@ class Bus {
     return this;
   }
 
+  // Olay dinleyicisini kaldırır veya belirli bir olay türünün tümünü siler.
   off(event: string, fn?: Handler, ctx?: unknown): this {
     if (!fn) {
       this.listeners.delete(event);
@@ -113,6 +117,7 @@ class Bus {
     return this;
   }
 
+  // Olay ateşletir; tüm dinleyicileri çağırır ve once'ler kaldırır.
   emit(event: string, ...args: unknown[]): boolean {
     const arr = this.listeners.get(event);
     if (!arr || !arr.length) return false;
@@ -124,12 +129,14 @@ class Bus {
     return true;
   }
 
+  // Belirtilen olay veya tüm dinleyicileri kaldırır.
   removeAllListeners(event?: string): this {
     if (event) this.listeners.delete(event);
     else this.listeners.clear();
     return this;
   }
 
+  // Belirtilen olay için kayıtlı dinleyici sayısını döndürür.
   listenerCount(event: string): number {
     return this.listeners.get(event)?.length ?? 0;
   }
@@ -138,6 +145,7 @@ class Bus {
 /** Process-wide singleton bus. */
 export const bus = new Bus();
 
+// Olay otobüsüne yazılmış tip ile olay ateşletir.
 /** Typed emit helper (thin wrapper for readability). */
 export function emit(event: GameEventName, ...args: unknown[]): void {
   bus.emit(event, ...args);

@@ -26,6 +26,7 @@ export class DriveControls {
   private readonly onBlur: () => void;
   private readonly onVisibility: () => void;
 
+  // Telefon kontrolleri için steering wheel + gas pedal DOM'unu ve event listener'larını kurar.
   constructor(parent: HTMLElement) {
     injectStyle();
     this.root = document.createElement('div');
@@ -166,18 +167,21 @@ export class DriveControls {
     document.addEventListener('visibilitychange', this.onVisibility);
   }
 
+  // Araç yönlendirme ekseni değerini günceller ve ekrana yön emiti gönderir.
   private setAxis(axis: number, faceDeg: number): void {
     this.axis = axis;
     this.face.style.transform = `rotate(${faceDeg}deg)`;
     bus.emit(GameEvent.ControlSteerAxis, axis);
   }
 
+  // Keyboard steering ekseni değerini günceller ve wheel face'i çevirir.
   private setKeyAxis(a: number): void {
     this.keyAxis = a;
     this.face.style.transform = `rotate(${-a * 46}deg)`;
     bus.emit(GameEvent.ControlSteerAxis, a);
   }
 
+  // Tüm tuş ve pointer event dinleyicilerini kaldırıp DOM'u temizler.
   destroy(): void {
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
@@ -187,6 +191,7 @@ export class DriveControls {
   }
 }
 
+// Steering wheel ve gas pedal CSS stillerini document'e enjekte eder.
 let styled = false;
 function injectStyle(): void {
   if (styled) return;

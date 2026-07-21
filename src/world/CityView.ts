@@ -9,7 +9,7 @@ export interface Xform {
   ry?: number; sx?: number; sy?: number; sz?: number; color?: number;
 }
 
-/** Build one InstancedMesh from a list of transforms. */
+// Transform listesinden tek InstancedMesh oluşturur
 export function instanced(
   geo: THREE.BufferGeometry,
   mat: THREE.Material,
@@ -39,8 +39,7 @@ export function instanced(
   return mesh;
 }
 
-/** Darken an 0xRRGGBB int toward black by factor f (0..1). Exported for reuse
- * by other instanced builders (e.g. POI landmark awnings). */
+// Rengi siyaha doğru faktörle koyulaştırır
 export function darken(hex: number, f: number): number {
   const r = Math.round(((hex >> 16) & 0xff) * f);
   const g = Math.round(((hex >> 8) & 0xff) * f);
@@ -58,11 +57,7 @@ export function darken(hex: number, f: number): number {
 export class CityView {
   readonly group = new THREE.Group();
 
-  /**
-   * @param reserved Optional set of `"col,row"` plot keys to skip when scattering
-   * random buildings/parks/trees (SERBEST: POIs own these plots instead — see
-   * `world/Pois.ts`). The sidewalk pad still renders so the ground reads uniform.
-   */
+  // Şehir tasviri oluşturur, yer ve bina sistemini hazırlar
   constructor(grid: Grid, rng: Rng, reserved?: ReadonlySet<string>) {
     this.buildGround(grid);
     this.buildBlocks(grid, rng, reserved);
@@ -70,7 +65,7 @@ export class CityView {
     this.buildStreetlights(grid);
   }
 
-  // --- Ground (the asphalt) -------------------------------------------------
+  // Zemin (asfalt) 3D mesh'ini oluşturur
   private buildGround(grid: Grid): void {
     const block = grid.block;
     const pad = block * 3;
@@ -84,7 +79,7 @@ export class CityView {
     this.group.add(ground);
   }
 
-  // --- Blocks: sidewalk plots + buildings + rooftops + trees ----------------
+  // Şehir bloklarını (binalar, çatılar, ağaçlar) oluşturur
   private buildBlocks(grid: Grid, rng: Rng, reserved?: ReadonlySet<string>): void {
     const plots: Xform[] = [];
     const buildings: Xform[] = [];
@@ -185,7 +180,7 @@ export class CityView {
     );
   }
 
-  // --- Road markings: centre dashes (+ avenue lane lines) + zebra crossings --
+  // Yol işaretlemelerini (merkezde çizgiler + zebra geçişleri) inşa eder
   private buildRoadMarkings(grid: Grid): void {
     const block = grid.block;
     // Skip markings near an intersection so crossings stay clean (uses that line's width).
@@ -253,7 +248,7 @@ export class CityView {
     ));
   }
 
-  // --- Streetlights at intersection corners ---------------------------------
+  // Sokak lambalarını kavşak köşelerine yerleştirir
   private buildStreetlights(grid: Grid): void {
     const block = grid.block;
     const poles: Xform[] = [];

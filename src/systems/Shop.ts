@@ -15,6 +15,7 @@ export interface ShopItemView {
   shortfall: number;
 }
 
+// Oyuncunun bir mağaza ürününü sahip olup olmadığını kontrol eder.
 export function isShopItemOwned(
   item: ShopItem,
   profile: Readonly<PlayerProfile>,
@@ -25,6 +26,7 @@ export function isShopItemOwned(
   return options.ownedItemIds?.has(item.id) ?? false;
 }
 
+// Ürün görünümünü (durumu, bakiye, açık fiyat farkı) oluşturur.
 export function getShopItemView(
   item: ShopItem,
   profile: Readonly<PlayerProfile>,
@@ -42,6 +44,7 @@ export function getShopItemView(
   };
 }
 
+// Kategori içindeki ürünleri filtreler, görünümleri oluşturur ve öne çıkanları sıralıyor.
 export function getShopCategoryItems(
   items: readonly ShopItem[],
   category: ShopCategory,

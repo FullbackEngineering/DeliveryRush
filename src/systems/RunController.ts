@@ -22,6 +22,7 @@ export class RunController {
   private countIdx = 0;
   private countAcc = 0;
 
+  // Kurar: koşu durumunu ve olay aboneliklerini başlatır.
   constructor(
     private orders: Orders3D,
     private vehicle: Vehicle3D,
@@ -33,11 +34,13 @@ export class RunController {
     bus.on(GameEvent.Crash, this.onCrash);
   }
 
+  // Koşunun şu anda çalışıp çalışmadığını döndürür.
   get running(): boolean {
     return this.phase === 'running';
   }
 
   /** (Re)start a run: fresh state, car home, then run the intro countdown. */
+  // Yeni koşu başlatır: durumu sıfırlar, geri sayımı başlatır.
   start(): void {
     this.state = new RunState();
     this.orders.reset();
@@ -48,6 +51,7 @@ export class RunController {
     bus.emit(GameEvent.Countdown, this.countSteps[0]);
   }
 
+  // Geri sayımı ilerlettir veya koşu döngüsünü güncelleştir.
   update(dt: number): void {
     if (this.phase === 'countdown') {
       this.tickCountdown(dt);
@@ -62,6 +66,7 @@ export class RunController {
     }
   }
 
+  // Geri sayım adımlarını ilerletir, GO'ya ulaştığında koşu başlatır.
   private tickCountdown(dt: number): void {
     this.countAcc += dt * 1000;
     const stepDur = this.countIdx < 3 ? Run.countdownStepMs : Run.countdownGoMs;
@@ -75,12 +80,14 @@ export class RunController {
     }
   }
 
+  // Koşuyu çalıştırma durumuna geçirir ve ilk işi oluşturur.
   private beginRunning(): void {
     this.phase = 'running';
     bus.emit(GameEvent.RunStart);
     this.spawnNext();
   }
 
+  // Bir sonraki işi oluşturur, zorluk seviyesine uygun parametrelerle.
   private spawnNext(): void {
     if (this.state.ended) return;
     this.orders.spawn(
@@ -91,6 +98,7 @@ export class RunController {
     );
   }
 
+  // İş teslimini işler: durumu günceller, ses çalar ve sonraki işi oluşturur.
   private onDelivered = (order: Order): void => {
     if (this.phase !== 'running') return;
     this.state.onDelivered(order); // emits ComboChanged / RunCoins / RunScore + banks time
@@ -98,6 +106,7 @@ export class RunController {
     this.spawnNext();
   };
 
+  // Süre biten işi işler: seriyi kırar, ses çalar ve sonraki işi oluşturur.
   private onExpired = (): void => {
     if (this.phase !== 'running') return;
     this.state.onOrderExpired();
@@ -105,11 +114,13 @@ export class RunController {
     this.spawnNext();
   };
 
+  // Çarpışmayı işler: seriyi kırabilir ve zamanı kesebilir.
   private onCrash = (): void => {
     if (this.phase !== 'running') return;
     this.state.onCrash(); // breaks combo (unless a free-crash charge) + docks time
   };
 
+  // Olay aboneliklerini temizler, kaynakları serbest bırakır.
   destroy(): void {
     bus.off(GameEvent.OrderDelivered, this.onDelivered);
     bus.off(GameEvent.OrderExpired, this.onExpired);

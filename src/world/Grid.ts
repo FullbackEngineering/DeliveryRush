@@ -20,6 +20,7 @@ export class Grid {
   /** Half the *base* street width — the default corridor half-extent. */
   readonly roadHalf: number;
 
+  // Şehir konfigürasyonundan ızgara parametrelerini başlatır
   constructor(readonly cfg: CityConfig = RUSH_CITY) {
     this.cols = cfg.cols;
     this.rows = cfg.rows;
@@ -37,27 +38,22 @@ export class Grid {
   get centerX(): number { return (this.cols * this.block) / 2; }
   get centerZ(): number { return (this.rows * this.block) / 2; }
 
-  /** True if the grid line at index `line` is a wide arterial avenue. */
+  // Izgara çizgisinin geniş caddemi olduğunu kontrol eder
   isAvenue(line: number): boolean {
     return this.avenueEvery > 0 && line % this.avenueEvery === 0;
   }
 
-  /** Half-width of the road on the grid line at index `line`. */
+  // Belirli ızgara çizgisinin yol genişliğinin yarısını döndürür
   halfAt(line: number): number {
     return (this.isAvenue(line) ? this.avenueWidth : this.roadWidth) / 2;
   }
 
-  /** World XZ of a road intersection. */
+  // Yol kavşağının dünya XZ konumunu döndürür
   nodePos(col: number, row: number): { x: number; z: number } {
     return { x: col * this.block, z: row * this.block };
   }
 
-  /**
-   * The sidewalk/building plot rectangle for block (col,row) — fits between the
-   * inner edges of its four bounding roads (avenue-aware via `halfAt`). Shared by
-   * `CityView` (random buildings) and `PoiSystem` (POI landmarks) so they always
-   * agree on where a plot sits. Returns null if an avenue ate the whole plot.
-   */
+  // Blok için kaldırım/bina alanı dikdörtgenini hesaplar
   plotRect(
     col: number,
     row: number,
@@ -73,24 +69,16 @@ export class Grid {
     return { x0, x1, z0, z1, cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, w, d };
   }
 
-  /** Clamp a position to stay inside the outer ring road. */
+  // X konumunu dış halka yolun içinde sınırlar
   clampX(x: number, margin = this.block * 0.5): number {
     return Math.max(margin, Math.min(this.worldW - margin, x));
   }
+  // Z konumunu dış halka yolun içinde sınırlar
   clampZ(z: number, margin = this.block * 0.5): number {
     return Math.max(margin, Math.min(this.worldD - margin, z));
   }
 
-  /**
-   * Building collision for the Manhattan grid. Roads run along the grid lines; the
-   * cells between them are solid building blocks. A position is "on road" if it lies
-   * within the relevant line's half-width of a vertical OR horizontal line. If it
-   * strays into a block interior (both axes off-road), push it back out to the nearest
-   * road edge — a smooth wall-slide along the building face rather than passing through.
-   *
-   * @param margin extra inset kept between the car centre and the building face.
-   * @returns corrected {x,z} and whether a correction happened (to scrub speed).
-   */
+  // Manhattan ızgarasında bina çarpışmasını çözer, araçyı yollara sınırlar
   resolveRoads(x: number, z: number, margin = 0): { x: number; z: number; hit: boolean } {
     const colLine = Math.round(x / this.block);
     const rowLine = Math.round(z / this.block);

@@ -78,6 +78,7 @@ export class WorldMap {
   private cacheReady = false;
   private destroyed = false;
 
+  // Dünya haritası renderer'ı, kamerasını ve canvas'larını kurar.
   constructor(private readonly options: WorldMapOptions) {
     injectStyle();
     this.cssSize = options.size ?? 136;
@@ -137,7 +138,7 @@ export class WorldMap {
     this.observer?.observe(this.element);
   }
 
-  /** Render at the configured low frequency; safe to call every game frame. */
+  // Harita görünümünü frame'de günceller (throttled render hızında).
   update(dt: number): void {
     if (this.destroyed) return;
     this.mapTime += Math.max(0, dt);
@@ -165,7 +166,7 @@ export class WorldMap {
     }
   }
 
-  /** Force an immediate map refresh (useful after async decor/models arrive). */
+  // Haritayı anında yeniler (async model'ler yüklendikten sonra).
   render(): void {
     if (this.destroyed || !this.element.isConnected) return;
     const target = this.options.getCenter?.() ?? this.options.getSnapshot?.().player;
@@ -175,6 +176,7 @@ export class WorldMap {
     this.refreshVisuals(true);
   }
 
+  // 3D scene'i orthographic kamera ile render edip cache'e kaydeder.
   private captureWorld(): void {
     if (this.destroyed || !this.element.isConnected) return;
     const grid = this.options.grid;
@@ -210,6 +212,7 @@ export class WorldMap {
     this.fitLocalView();
   }
 
+  // Renderer'ı, observer'ı ve DOM element'i temizler.
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
@@ -218,6 +221,7 @@ export class WorldMap {
     this.element.remove();
   }
 
+  // Kamerayı viewer merkezi ve radius'e göre ayarlar.
   private fitLocalView(): void {
     const { grid } = this.options;
     const radius = this.viewRadius();
@@ -233,6 +237,7 @@ export class WorldMap {
     this.camera.updateProjectionMatrix();
   }
 
+  // Canvas backing store boyutunu DPR'ye göre senkronize eder.
   private syncBackingSize(): void {
     const measured = this.element.getBoundingClientRect().width;
     this.cssSize = Math.max(1, measured || this.cssSize);
@@ -252,6 +257,7 @@ export class WorldMap {
     this.visualElapsed = this.visualInterval;
   }
 
+  // Dünya koordinatını harita canvas pixel'ine çevirir.
   private worldToMap(x: number, z: number, center = this.displayCenter): { x: number; y: number } {
     const radius = this.viewRadius();
     const span = radius * 2;
@@ -261,10 +267,12 @@ export class WorldMap {
     };
   }
 
+  // Görünür harita yarıçapını metre cinsinden döner.
   private viewRadius(): number {
     return Math.max(40, this.options.viewRadiusM ?? Math.min(this.options.grid.worldW, this.options.grid.worldD) * 0.22);
   }
 
+  // Harita görünümünü cache'den çizer ve overlay'i yeniler.
   private refreshVisuals(force = false): void {
     if (!this.cacheReady) return;
     // Keep the diagnostic camera position in sync without rebuilding its
@@ -287,6 +295,7 @@ export class WorldMap {
     this.drawOverlay(force ? (this.options.getSnapshot?.() ?? this.snapshot) : this.snapshot);
   }
 
+  // Oyuncu/hedef/rota overlay'ini çizer.
   private drawOverlay(snapshot: WorldMapSnapshot | null): void {
     const ctx = this.ctx;
     const size = this.cssSize;
@@ -325,6 +334,7 @@ export class WorldMap {
     ctx.restore();
   }
 
+  // Harita marker'ını (oyuncu/trafik/POI) çizer.
   private drawMarker(marker: WorldMapMarker): void {
     const ctx = this.ctx;
     const p = this.worldToMap(marker.x, marker.z);
@@ -370,6 +380,7 @@ export class WorldMap {
   }
 }
 
+// Marker türüne ait renk kodunu döner.
 function markerColor(kind: WorldMapMarkerKind): string {
   if (kind === 'player') return '#ffffff';
   if (kind === 'traffic') return '#f5c451';
@@ -379,6 +390,7 @@ function markerColor(kind: WorldMapMarkerKind): string {
   return '#a9c7e8';
 }
 
+// Harita CSS stillerini document'e enjekte eder.
 let styled = false;
 function injectStyle(): void {
   if (styled) return;

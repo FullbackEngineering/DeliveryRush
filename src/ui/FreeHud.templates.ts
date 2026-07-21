@@ -1,6 +1,5 @@
 import { Job } from '@/types';
 import { formatTime } from '@/utils/MathUtils';
-import orderBoardUrl from '@/assets/ui/order-board.webp?url';
 import speedometerUrl from '@/assets/ui/speedometer.webp?url';
 import jobsButtonUrl from '@/assets/ui/jobs-button.webp?url';
 
@@ -11,6 +10,7 @@ import jobsButtonUrl from '@/assets/ui/jobs-button.webp?url';
  * touches `FreeHud`'s public API.
  */
 
+// İş panosu satırı HTML'i oluşturur (kaynak ve hedef konum ile birlikte).
 export function rowHtml(j: Job): string {
   const km = (j.distanceM / 1000).toFixed(1);
   return `
@@ -18,14 +18,13 @@ export function rowHtml(j: Job): string {
       <div class="dr-job-row-icon">${j.kind.emoji}</div>
       <div class="dr-job-row-info">
         <div class="dr-job-row-title">${j.special ? '⭐ ' : ''}${j.source.name} → ${j.dest.name}</div>
-        <div class="dr-job-row-meta"><span>${km} km</span><span>${formatTime(j.timeLimit)}</span><span>maks -${j.pay}</span></div>
+        <div class="dr-job-row-meta"><span>📍 ${km} km</span><span>⏱ ${formatTime(j.timeLimit)}</span><span>maks -${j.pay}</span></div>
       </div>
       <div class="dr-job-row-pay">+${j.pay}<span>🪙</span></div>
     </button>`;
 }
 
-/** Stop-to-order row: source is implicit (the POI you're parked at), so lead
- * with the destination instead. */
+// Stop-to-order satırı HTML'i oluşturur (kaynak POI'de olunduğu için hedef ile başlar).
 export function stopRowHtml(j: Job): string {
   const km = (j.distanceM / 1000).toFixed(1);
   return `
@@ -33,7 +32,7 @@ export function stopRowHtml(j: Job): string {
       <div class="dr-job-row-icon">${j.kind.emoji}</div>
       <div class="dr-job-row-info">
         <div class="dr-job-row-title">${j.special ? '⭐ ' : ''}→ ${j.dest.name}</div>
-        <div class="dr-job-row-meta"><span>${km} km</span><span>${formatTime(j.timeLimit)}</span><span>maks -${j.pay}</span></div>
+        <div class="dr-job-row-meta"><span>📍 ${km} km</span><span>⏱ ${formatTime(j.timeLimit)}</span><span>maks -${j.pay}</span></div>
       </div>
       <div class="dr-job-row-pay">+${j.pay}<span>🪙</span></div>
     </button>`;
@@ -91,6 +90,7 @@ export const FREE_HUD_TEMPLATE = `
   </div>
   <div class="dr-free-float-layer"></div>`;
 
+// SERBEST modu HUD CSS stillerini document'e enjekte eder.
 let styled = false;
 export function injectFreeHudStyle(): void {
   if (styled) return;
@@ -113,12 +113,13 @@ export function injectFreeHudStyle(): void {
     .dr-free-badge { border-left: 4px solid #5aa9ff; }
     .dr-free-wallet { color: #ffd54a; }
     .dr-free-speed { width: clamp(92px,24vw,112px); height: clamp(52px,13vw,62px); padding: 0 14px;
-      display: flex; align-items: center; justify-content: center; gap: 3px; text-align: center;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; text-align: center;
       font-variant-numeric: tabular-nums; border: 0; border-radius: 0; box-shadow: none;
       background: url("${speedometerUrl}") center/100% 100% no-repeat;
       transition: color .15s, filter .15s; }
-    .dr-free-speed b { font-size: 18px; text-shadow: 0 2px 4px #070c16; }
-    .dr-free-speed span { font-size: 10px; color: #9fb0c9; margin-left: 1px; }
+    .dr-free-speed b { font-weight: 900; font-size: clamp(20px,6.2vw,26px); line-height: 1;
+      text-shadow: 0 2px 4px #070c16; }
+    .dr-free-speed span { font-size: clamp(8px,2.2vw,9px); line-height: 1; color: #9fb0c9; margin: 2px 0 0; }
     /* Over the local speed limit: pill goes red so you know you're risking a fine. */
     .dr-free-speed.over { color: #ffd7d7; filter: drop-shadow(0 0 6px rgba(239,68,68,.8));
       animation: dr-free-pulse .7s ease-in-out infinite; }
@@ -193,8 +194,10 @@ export function injectFreeHudStyle(): void {
     .dr-job-row-info { flex: 1; min-width: 0; }
     .dr-job-row-title { font-weight: 800; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .dr-job-row-meta { font-size: 11px; color: #9fb0c9; margin-top: 2px; display: flex; gap: 8px; }
-    .dr-job-row-pay { flex: 0 0 auto; font-weight: 900; font-size: 14px; color: #37d67a; }
-    .dr-job-row-pay span { font-size: 12px; }
+    .dr-job-row-pay { flex: 0 0 auto; display: flex; align-items: center; gap: 3px; font-weight: 900;
+      font-size: 13px; color: #06280f; background: linear-gradient(180deg,#3ad07a,#28a35c);
+      border-radius: 999px; padding: 5px 10px; box-shadow: 0 2px 6px rgba(0,0,0,.25); }
+    .dr-job-row-pay span { font-size: 11px; }
 
     /* --- Police chase banner (top-centre, below the top bar + active job card) --- */
     .dr-chase-banner { position: fixed; left: 50%; top: calc(env(safe-area-inset-top,0px) + 258px);
@@ -240,36 +243,13 @@ export function injectFreeHudStyle(): void {
     .dr-stop-list { overflow-y: auto; padding: 4px 12px 8px; display: flex; flex-direction: column; gap: 8px; }
     .dr-stop-list.disabled .dr-job-row { opacity: 0.4; pointer-events: none; }
 
-    /* Supplied low-poly shop-order artwork. Live HTML remains above the image,
-       preserving accessibility, localization and real job data. */
-    .dr-stop-sheet { left: 50%; right: auto; bottom: calc(env(safe-area-inset-bottom,0px) + 18px);
-      width: min(calc(100vw - 12px),420px); height: min(60vh,538px); max-height: none;
-      border: 0; border-radius: 0; box-shadow: none; padding: 0; overflow: hidden;
-      background: url("${orderBoardUrl}") center/100% 100% no-repeat;
-      transform: translate(-50%,18px); }
-    .dr-stop-panel.open .dr-stop-sheet { transform: translate(-50%,0); }
-    .dr-stop-head { height: 18%; flex: 0 0 18%; padding: 4.5% 6.5% 1% 28%; gap: 6px; }
-    .dr-stop-icon { display: none; }
-    .dr-stop-title { padding: 8px 10px; text-align: center; font-size: 14px; color: #e6edf7;
-      text-shadow: 0 2px 4px #070c16; }
-    .dr-stop-close { width: 34px; height: 34px; border-radius: 0; border: 0; background: transparent; }
-    .dr-stop-note { position: absolute; top: 16%; left: 8%; right: 8%; z-index: 2; margin: 0; }
-    .dr-stop-list { flex: 1; min-height: 0; overflow-y: auto; padding: 1.5% 6.5% 7%; gap: 1.6%; }
-    .dr-stop-list .dr-job-row { position: relative; flex: 1 1 0; min-height: 0; padding: 4.5% 5% 3% 22%;
-      border: 0; border-radius: 0; background: transparent; gap: 0; }
-    .dr-stop-list .dr-job-row.special { border: 0; background: rgba(255,213,74,.04); }
-    .dr-stop-list .dr-job-row-icon { display: none; }
-    .dr-stop-list .dr-job-row-info { align-self: stretch; display: flex; flex-direction: column; min-width: 0; }
-    .dr-stop-list .dr-job-row-title { height: 42%; padding: 2px 4px; color: #101a2b; font-size: clamp(10px,3vw,13px);
-      display: flex; align-items: center; text-shadow: 0 1px rgba(255,255,255,.45); }
-    .dr-stop-list .dr-job-row-meta { position: absolute; left: 16%; right: 24%; bottom: 9%; margin: 0;
-      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4%; color: #dbe7f8;
-      font-size: clamp(8px,2.4vw,10px); }
-    .dr-stop-list .dr-job-row-meta span { text-align: center; white-space: nowrap; }
-    .dr-stop-list .dr-job-row-pay { position: absolute; right: 3%; bottom: 14%; width: 19%; text-align: center;
-      color: #06210f; font-size: clamp(11px,3.2vw,14px); text-shadow: 0 1px rgba(255,255,255,.25); }
-    .dr-stop-list .dr-job-row-pay span { display: none; }
-    .dr-stop-list .dr-job-row:nth-child(3) { top: -7px; }
+    /* Stop-to-order rows are CSS-native (like the job board) so ANY number of
+       orders lines up and scrolls — no fixed 3-slot raster to drift against. */
+    .dr-stop-sheet { border-top-color: rgba(245,165,36,0.5); }
+    .dr-stop-list { flex: 1 1 auto; min-height: 0; }
+    .dr-stop-list .dr-job-row { border-left: 3px solid rgba(245,165,36,0.55);
+      background: rgba(245,165,36,0.06); }
+    .dr-stop-list .dr-job-row.special { background: rgba(255,213,74,0.12); }
 
     /* --- Floating reward text --- */
     .dr-free-float-layer { position: fixed; top: 46%; left: 0; right: 0; text-align: center; z-index: 7; }

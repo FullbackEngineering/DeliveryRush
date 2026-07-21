@@ -15,6 +15,7 @@ export class NavArrow {
   private mat: THREE.MeshBasicMaterial;
   private t = 0;
 
+  // Navigasyon okunu oluşturur, yön gösterimi için hazırlar
   constructor() {
     // Arrow polygon pointing -Y in shape space (becomes +Z once laid flat).
     const s = new THREE.Shape();
@@ -36,11 +37,12 @@ export class NavArrow {
     this.group.visible = false;
   }
 
+  // Ok rengini değiştirir
   setColor(color: number): void {
     this.mat.color.setHex(color);
   }
 
-  /** Sit a few metres ahead of the car (along its heading), pointing at the target. */
+  // Aracın önüne yerleştirilir, hedefe doğru yönelir ve pulsuz eder
   point(carX: number, carZ: number, carYaw: number, targetX: number, targetZ: number, dt: number): void {
     this.t += dt;
     const ahead = 9;
@@ -50,6 +52,7 @@ export class NavArrow {
     this.group.visible = true;
   }
 
+  // Oku gizler
   hide(): void {
     this.group.visible = false;
   }
