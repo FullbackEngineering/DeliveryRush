@@ -2,8 +2,7 @@ import { defineConfig } from 'vite';
 import { fileURLToPath, URL } from 'node:url';
 
 // Delivery Rush — Vite config.
-// The repo root also contains reference-only folders (book-of-game, game-promt,
-// game-example-foto). They are never imported, so Vite happily ignores them.
+// Production source lives under src/ and is emitted to dist/.
 export default defineConfig({
   base: './',
   resolve: {

@@ -1,8 +1,6 @@
 # Gametegra mini-app manifest.
 # Runtime keys (name/orientation/menuButton) are read by the Engine; packaging
 # keys (source_path/build_path/payment_packages) are read by the `gametegra` CLI.
-# See .claude/skills/gametegra-sdk for the field reference and gotchas.
-
 name: "Kopernik"
 orientation: "portrait"
 menuButton:

@@ -8,28 +8,14 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
-    "playtest": "node tools/playtest/smoke.mjs",
-    "playtest:feel": "node tools/playtest/feel.mjs",
-    "playtest:touch": "node tools/playtest/touch.mjs",
-    "playtest:mobile-controls": "node tools/playtest/mobile-controls.mjs",
-    "playtest:ui-assets": "node tools/playtest/ui-assets.mjs",
-    "playtest:kopernik-ui": "node tools/playtest/kopernik-ui.mjs",
-    "playtest:drive": "node tools/playtest/three-drive.mjs",
-    "playtest:loop": "node tools/playtest/three-loop.mjs",
-    "playtest:modes": "node tools/playtest/three-modes.mjs",
-    "playtest:free-orders": "node tools/playtest/free-orders.mjs",
-    "playtest:police": "node tools/playtest/police.mjs",
-    "playtest:traffic": "node tools/playtest/traffic-rules.mjs"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@gametegra/sdk": "^0.3.8",
     "three": "^0.171.0"
   },
   "devDependencies": {
-    "@gltf-transform/cli": "^4.4.1",
     "@types/three": "^0.171.0",
-    "puppeteer-core": "^23.11.1",
     "typescript": "^5.7.3",
     "vite": "^6.3.5"
   }
