@@ -79,22 +79,7 @@ const def = VEHICLE_MAP[profile.selectedVehicle] ?? VEHICLE_MAP['starter'];
 // current upgrade level — makes the roster feel distinct and upgrades matter.
 const drive = driveStatsAtLevel(def, Profile.vehicleLevel(def.id));
 
-const fpsEl = document.getElementById('fps');
 const goMenu = () => { window.location.href = window.location.pathname; };
-
-// FPS ve render çağrılarını canlı aracın bilgisiyle günceller.
-/** Wire the shared dev/fps readout to a live vehicle. */
-function wireFps(vehicle: Vehicle3D): void {
-  if (fpsEl) fpsEl.style.display = 'block';
-  let acc = 0;
-  game.onUpdate((dt) => {
-    acc += dt;
-    if (acc >= 0.25 && fpsEl) {
-      acc = 0;
-      fpsEl.textContent = `${game.fps} fps · ${game.renderer.info.render.calls} draws · ${vehicle.speedKmh} km/h`;
-    }
-  });
-}
 
 // --- RUSH: the tuned 60-second delivery sprint -----------------------------
 // 60 saniyelik teslimat koşuşu modunu başlatır: şehir, araç, siparişler, trafik.
@@ -159,8 +144,6 @@ function startRush(): void {
     chase.update(dt, carPos, vehicle.yaw, vehicle.normalizedSpeed);
     worldMap.update(dt);
   });
-  wireFps(vehicle);
-
   game.start();
   run.start();
   exposeHarness(game, vehicle, orders, traffic, grid, run, undefined, worldMap);
@@ -274,8 +257,6 @@ function startFree(): void {
     }
     worldMap.update(dt);
   });
-  wireFps(vehicle);
-
   game.start();
   exposeHarness(game, vehicle, null, traffic, grid, null, { board, pois, police, decor }, worldMap);
 }
