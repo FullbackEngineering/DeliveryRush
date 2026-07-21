@@ -1,160 +1,138 @@
+import currencyArtUrl from '@/assets/ui/kopernik/kopernik-currency-bg.webp?url';
+import gemArtUrl from '@/assets/ui/kopernik/kopernik-gems.webp?url';
+import coinArtUrl from '@/assets/ui/kopernik/kopernik-coins.webp?url';
+import coinIconUrl from '@/assets/ui/kopernik/coin-icon.webp?url';
+import gemIconUrl from '@/assets/ui/kopernik/gem-icon.webp?url';
 import { Profile } from '@/managers/ProfileStore';
 import { bus, GameEvent } from '@/core/EventBus';
 import { formatNumber } from '@/utils/MathUtils';
-import { GEM_PACKS, AD_GEM_REWARD } from '@/data/gemPacks';
-import { buyGems, watchAdForGems } from '@/services/gametegra/gems';
-import { isHost } from '@/services/gametegra/gametegra';
+import { GEM_PACKS, COIN_PACKS, AD_GEM_REWARD } from '@/data/gemPacks';
+import { buyCoins, buyGems, watchAdForGems } from '@/services/gametegra/gems';
 
-/**
- * Real-money gem shop (Gametegra IAP + a rewarded-ad grant). A self-contained
- * native-DOM overlay plus a floating trigger button — mounts hidden and opens on
- * tap, so wiring it is one line and it never touches MarketScreen. Purchases and
- * ads need the SuperApp host; outside it the actions disable with a note.
- */
+export interface GemShopOptions { showTrigger?: boolean; }
+
 export class GemShop {
   private readonly root: HTMLDivElement;
   private readonly trigger: HTMLButtonElement;
   private busy = false;
 
-  // Elmas dükkanı overlay'ini ve açma butonunu kurar, profil değişimini dinler.
-  constructor(mount: HTMLElement) {
+  constructor(mount: HTMLElement, options: GemShopOptions = {}) {
     injectStyle();
-
     this.trigger = document.createElement('button');
     this.trigger.className = 'dr-gem-trigger';
-    this.trigger.textContent = '💎 Elmas Al';
+    this.trigger.textContent = 'PARA MAĞAZASI';
+    this.trigger.hidden = options.showTrigger === false;
     this.trigger.addEventListener('click', () => this.open());
     mount.appendChild(this.trigger);
-
     this.root = document.createElement('div');
     this.root.className = 'dr-gem';
     this.root.hidden = true;
+    this.root.addEventListener('click', this.onClick);
     mount.appendChild(this.root);
-
-    bus.on(GameEvent.ProfileChanged, () => {
-      if (!this.root.hidden) this.render();
-    });
+    bus.on(GameEvent.ProfileChanged, this.onProfileChanged);
     this.render();
   }
 
-  // Overlay'i açar ve içeriği tazeler.
-  open(): void {
-    this.root.hidden = false;
-    this.render();
+  open(): void { this.root.hidden = false; this.render(); }
+  close(): void { this.root.hidden = true; }
+  destroy(): void {
+    bus.off(GameEvent.ProfileChanged, this.onProfileChanged);
+    this.root.removeEventListener('click', this.onClick);
+    this.root.remove(); this.trigger.remove();
   }
 
-  // Overlay'i kapatır.
-  close(): void {
-    this.root.hidden = true;
+  private readonly onProfileChanged = (): void => { if (!this.root.hidden) this.render(); };
+  private readonly onClick = (event: MouseEvent): void => {
+    const target = (event.target as HTMLElement).closest<HTMLElement>('[data-action]');
+    if (!target || !this.root.contains(target)) return;
+    const action = target.dataset.action;
+    if (action === 'close') return this.close();
+    if (action === 'ad') return void this.onAd();
+    if (action === 'gems') return void this.onBuyGems(Number(target.dataset.index));
+    if (action === 'coins') return void this.onBuyCoins(Number(target.dataset.index));
+  };
+
+  private async onBuyGems(index: number): Promise<void> {
+    const pack = GEM_PACKS[index];
+    if (this.busy || !pack) return;
+    this.busy = true; this.render();
+    const ok = await buyGems(pack);
+    this.busy = false; this.render();
+    this.showToast(ok ? `+${formatNumber(pack.gems)} KAZANDIN` : 'SATIN ALMA TAMAMLANMADI', ok ? gemIconUrl : undefined);
   }
 
-  // Bir paket satın alır (host varsa); işlem sırasında butonları kilitler.
-  private async onBuy(code: string): Promise<void> {
-    if (this.busy) return;
-    const pack = GEM_PACKS.find((p) => p.code === code);
-    if (!pack) return;
-    this.busy = true;
-    this.render();
-    await buyGems(pack);
-    this.busy = false;
-    this.render();
+  private async onBuyCoins(index: number): Promise<void> {
+    const pack = COIN_PACKS[index];
+    if (this.busy || !pack) return;
+    this.busy = true; this.render();
+    const ok = await buyCoins(pack);
+    this.busy = false; this.render();
+    this.showToast(ok ? `+${formatNumber(pack.coins)} KAZANDIN` : 'SATIN ALMA TAMAMLANMADI', ok ? coinIconUrl : undefined);
   }
 
-  // Ödüllü reklam izleyip elmas kazandırır (host varsa).
   private async onAd(): Promise<void> {
     if (this.busy) return;
-    this.busy = true;
-    this.render();
-    await watchAdForGems();
-    this.busy = false;
-    this.render();
+    this.busy = true; this.render();
+    const ok = await watchAdForGems();
+    this.busy = false; this.render();
+    this.showToast(ok ? `+${AD_GEM_REWARD} KAZANDIN` : 'REKLAM TAMAMLANMADI', ok ? gemIconUrl : undefined);
   }
 
-  // Cüzdanı, paketleri ve reklam seçeneğini çizer; host yoksa aksiyonları kilitler.
-  private render(): void {
-    const gems = Profile.get().gems;
-    const host = isHost();
-    const disabled = host && !this.busy ? '' : 'disabled';
-    const note = host
-      ? ''
-      : `<div class="dr-gem__note">Elmas satın alma ve reklam yalnızca Gametegra SuperApp içinde çalışır.</div>`;
-    this.root.innerHTML = `
-      <div class="dr-gem__backdrop"></div>
-      <div class="dr-gem__sheet" role="dialog" aria-label="Elmas Al">
-        <div class="dr-gem__head">
-          <div class="dr-gem__title">💎 Elmas Al</div>
-          <div class="dr-gem__bal">💎 ${formatNumber(gems)}</div>
-          <button class="dr-gem__close" aria-label="Kapat">✕</button>
-        </div>
-        ${note}
-        <div class="dr-gem__packs">
-          ${GEM_PACKS.map(
-            (p) => `
-            <button class="dr-gem__pack" data-code="${p.code}" ${disabled}>
-              <span class="dr-gem__pack-gems">💎 ${formatNumber(p.gems)}</span>
-              ${p.bonus ? `<span class="dr-gem__pack-bonus">${p.bonus}</span>` : ''}
-              <span class="dr-gem__pack-buy">${this.busy ? '…' : 'Satın Al'}</span>
-            </button>`,
-          ).join('')}
-        </div>
-        <button class="dr-gem__ad" ${disabled}>📺 Reklam izle → +${AD_GEM_REWARD} 💎</button>
-      </div>`;
+  private showToast(message: string, iconUrl?: string): void {
+    const toast = this.root.querySelector<HTMLElement>('.dr-gem__toast');
+    if (!toast) return;
+    toast.replaceChildren();
+    if (iconUrl) {
+      const icon = document.createElement('img'); icon.src = iconUrl; icon.alt = ''; toast.append(icon);
+    }
+    toast.append(document.createTextNode(message)); toast.classList.add('show');
+    window.setTimeout(() => toast.classList.remove('show'), 1900);
+  }
 
-    this.root.querySelector('.dr-gem__backdrop')?.addEventListener('click', () => this.close());
-    this.root.querySelector('.dr-gem__close')?.addEventListener('click', () => this.close());
-    this.root.querySelectorAll<HTMLElement>('.dr-gem__pack').forEach((el) =>
-      el.addEventListener('click', () => void this.onBuy(el.dataset.code!)),
-    );
-    this.root.querySelector('.dr-gem__ad')?.addEventListener('click', () => void this.onAd());
+  private render(): void {
+    const profile = Profile.get();
+    this.root.innerHTML = `
+      <div class="dr-gem__art" aria-hidden="true"></div>
+      <main class="dr-gem__ui">
+        <header><button data-action="close" aria-label="Markete dön">GERİ</button>
+          <div><small>KOPERNİK</small><b>PARA MAĞAZASI</b></div>
+          <button data-action="close" aria-label="Kapat">KAPAT</button></header>
+        <div class="dr-gem__wallet"><span><img src="${gemIconUrl}" alt="elmas"><b>${formatNumber(profile.gems)}</b></span><span><img src="${coinIconUrl}" alt="coin"><b>${formatNumber(profile.coins)}</b></span></div>
+        <section class="dr-gem__columns">
+          <div><h2><img src="${gemIconUrl}" alt="Elmas paketleri"></h2>${GEM_PACKS.map((pack, index) => `<button class="dr-gem-pack gem" data-action="gems" data-index="${index}" ${this.busy ? 'disabled' : ''}>
+            <img class="dr-gem-pack__art" src="${gemArtUrl}" alt=""><b>${formatNumber(pack.gems)}</b><small>${pack.bonus ?? 'PAKET'}</small><strong>SATIN AL</strong></button>`).join('')}</div>
+          <div><h2><img src="${coinIconUrl}" alt="Coin paketleri"></h2>${COIN_PACKS.map((pack, index) => `<button class="dr-gem-pack coin" data-action="coins" data-index="${index}" ${this.busy ? 'disabled' : ''}>
+            <img class="dr-gem-pack__art" src="${coinArtUrl}" alt=""><b>${formatNumber(pack.coins)}</b><small>${pack.bonus ?? 'PAKET'}</small><strong>SATIN AL</strong></button>`).join('')}</div>
+        </section>
+        <button class="dr-gem__ad" data-action="ad" ${this.busy ? 'disabled' : ''}><b>${this.busy ? 'İŞLEM AÇILIYOR…' : 'REKLAM İZLE'}</b><strong>+${AD_GEM_REWARD} <img src="${gemIconUrl}" alt="elmas"></strong></button>
+      </main><div class="dr-gem__toast" role="status" aria-live="polite"></div>`;
   }
 }
 
 let styled = false;
-// Elmas dükkanı stillerini bir kez enjekte eder.
 function injectStyle(): void {
-  if (styled) return;
-  styled = true;
-  const s = document.createElement('style');
-  s.textContent = `
-    .dr-gem-trigger { position: fixed; left: 50%; transform: translateX(-50%);
-      bottom: calc(env(safe-area-inset-bottom,0px) + var(--sa-bottom,0px) + 14px);
-      z-index: 12; pointer-events: auto; border: 0; border-radius: 999px; cursor: pointer;
-      padding: 12px 22px; font-weight: 900; font-size: 15px; color: #10203a;
-      background: linear-gradient(180deg,#7fd0ff,#39a2f0); box-shadow: 0 8px 22px rgba(0,0,0,.4);
-      -webkit-tap-highlight-color: transparent; }
-    .dr-gem-trigger:active { transform: translateX(-50%) translateY(2px); }
-    .dr-gem { position: fixed; inset: 0; z-index: 30; display: flex; align-items: flex-end;
-      justify-content: center; pointer-events: auto;
-      font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color: #e6edf7; }
-    .dr-gem[hidden] { display: none; }
-    .dr-gem__backdrop { position: absolute; inset: 0; background: rgba(5,9,18,0.66); }
-    .dr-gem__sheet { position: relative; width: min(100vw - 16px, 440px);
-      margin-bottom: calc(env(safe-area-inset-bottom,0px) + var(--sa-bottom,0px) + 12px);
-      background: linear-gradient(180deg,#141d2e,#0d1524); border: 1px solid rgba(120,150,200,0.22);
-      border-radius: 22px; padding: 16px; box-shadow: 0 -12px 34px rgba(0,0,0,0.5); }
-    .dr-gem__head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-    .dr-gem__title { flex: 1; font-weight: 900; font-size: 17px; }
-    .dr-gem__bal { padding: 7px 11px; border: 1px solid #334563; border-radius: 999px;
-      background: #111e33cc; font-size: 13px; font-weight: 800; }
-    .dr-gem__close { width: 36px; height: 36px; border: 1px solid #354762; border-radius: 12px;
-      color: #b9c8dc; background: #152238; font-size: 20px; cursor: pointer; }
-    .dr-gem__note { margin: 2px 0 12px; font-size: 12px; color: #ffd8a8; font-weight: 700;
-      background: rgba(245,165,36,0.12); border: 1px solid rgba(245,165,36,0.3);
-      border-radius: 12px; padding: 8px 10px; }
-    .dr-gem__packs { display: flex; flex-direction: column; gap: 8px; }
-    .dr-gem__pack { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
-      border: 1px solid rgba(120,150,200,0.22); border-radius: 14px; padding: 12px 14px;
-      background: rgba(255,255,255,0.05); color: #e6edf7; font-weight: 800; cursor: pointer;
-      -webkit-tap-highlight-color: transparent; }
-    .dr-gem__pack:disabled { opacity: 0.5; cursor: default; }
-    .dr-gem__pack-gems { flex: 1; font-size: 16px; }
-    .dr-gem__pack-bonus { color: #37d67a; font-size: 12px; font-weight: 900; }
-    .dr-gem__pack-buy { color: #06280f; background: linear-gradient(180deg,#3ad07a,#28a35c);
-      border-radius: 999px; padding: 6px 14px; font-size: 13px; font-weight: 900; }
-    .dr-gem__ad { width: 100%; margin-top: 10px; border: 1px dashed rgba(120,150,200,0.4);
-      border-radius: 14px; padding: 13px; background: rgba(255,255,255,0.04); color: #cdd8ea;
-      font-weight: 900; font-size: 14px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-    .dr-gem__ad:disabled { opacity: 0.5; cursor: default; }
+  if (styled) return; styled = true;
+  const style = document.createElement('style');
+  style.textContent = `
+    .dr-gem-trigger { position:fixed; left:50%; bottom:14px; z-index:12; transform:translateX(-50%);
+      min-height:42px; padding:0 20px; border:2px solid #36cfff; border-radius:12px; color:#eaffff;
+      background:#071525; font-weight:1000; pointer-events:auto; }.dr-gem-trigger[hidden]{display:none}
+    .dr-gem { position:fixed; inset:0; z-index:95; overflow:hidden; pointer-events:auto; color:#fff;
+      background:#06101f; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; }.dr-gem[hidden]{display:none}
+    .dr-gem *{box-sizing:border-box}.dr-gem__art{position:absolute;inset:0;background:url("${currencyArtUrl}") center/cover no-repeat;
+      filter:brightness(.58) saturate(.88);transform:scale(1.02)}
+    .dr-gem__ui{position:absolute;inset:0;display:flex;flex-direction:column;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 10px) 12px calc(env(safe-area-inset-bottom,0px) + 12px)}
+    .dr-gem button{cursor:pointer;-webkit-tap-highlight-color:transparent}.dr-gem header{display:grid;grid-template-columns:46px 1fr 46px;align-items:center;gap:7px}
+    .dr-gem header>button{height:44px;border:2px solid #28d9ff;border-radius:11px;color:#fff;background:#071827;font-size:8px;font-weight:1000}
+    .dr-gem header>div{text-align:center;line-height:1}.dr-gem header small,.dr-gem header b{display:block;font-weight:1000}.dr-gem header small{color:#ffc335;font-size:12px;letter-spacing:.12em}
+    .dr-gem header b{color:#42dcff;font-size:24px}.dr-gem__wallet{display:flex;justify-content:center;gap:8px}.dr-gem__wallet span{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:8px;border:2px solid #287fa7;border-radius:9px;background:#071827;text-align:center;font-size:11px}
+    .dr-gem__wallet img{width:22px;height:22px;object-fit:contain}.dr-gem__wallet b{color:#ffd43d;font-size:14px}.dr-gem__columns{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:8px}.dr-gem__columns>div{min-height:0;display:flex;flex-direction:column;gap:8px}
+    .dr-gem__columns h2{margin:0;padding:5px;border:2px solid #27bce8;border-radius:10px;color:#4bdfff;background:#071827;text-align:center;font-size:17px}.dr-gem__columns h2 img{width:30px;height:30px;object-fit:contain}.dr-gem__columns>div:nth-child(2) h2{border-color:#d88b17;color:#ffc63e}
+    .dr-gem-pack{flex:1;min-height:0;display:grid;grid-template-columns:42px 1fr;grid-template-rows:1fr auto auto;align-items:center;gap:2px 6px;padding:7px;border:2px solid #238cb8;border-radius:12px;color:#fff;background:#081827;text-align:left}
+    .dr-gem-pack.coin{border-color:#aa6c12}.dr-gem-pack__art{grid-row:1/4;width:40px;height:52px;border-radius:10px;object-fit:cover;background:#0b3048}.coin .dr-gem-pack__art{background:#3c290a}
+    .dr-gem-pack>b{color:#50e2ff;font-size:20px}.coin>b{color:#ffd13b}.dr-gem-pack small{color:#a9bacd;font-size:8px}.dr-gem-pack strong{display:block;padding:5px;border-radius:6px;color:#251600;background:#ffb82d;text-align:center;font-size:9px}
+    .dr-gem-pack:disabled,.dr-gem__ad:disabled{opacity:.65}.dr-gem__ad{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;min-height:62px;border:3px solid #20e27d;border-radius:13px;color:#fff;background:#07301f}
+    .dr-gem__ad strong{display:flex;align-items:center;gap:5px;color:#43eaff}.dr-gem__ad strong img{width:23px;height:23px;object-fit:contain}.dr-gem__toast{position:absolute;z-index:5;left:50%;top:48%;min-width:240px;padding:12px;transform:translate(-50%,-8px);border:2px solid #38dcff;border-radius:12px;background:#071321;display:flex;align-items:center;justify-content:center;gap:6px;text-align:center;font-size:12px;font-weight:1000;opacity:0;pointer-events:none;transition:.18s}.dr-gem__toast img{width:22px;height:22px;object-fit:contain}.dr-gem__toast.show{opacity:1;transform:translate(-50%,0)}
   `;
-  document.head.appendChild(s);
+  document.head.appendChild(style);
 }

@@ -207,6 +207,10 @@ export interface PlayerProfile {
   coins: number;
   gems: number;
   highScore: number;
+  /** Best coin payout earned in a single RUSH run. */
+  bestRushCoins: number;
+  /** Unix milliseconds when the last daily card was claimed; 0 = never. */
+  lastDailyCardClaimAt: number;
   totalDeliveries: number;
   selectedVehicle: string;
   vehicleLevels: Record<string, number>;

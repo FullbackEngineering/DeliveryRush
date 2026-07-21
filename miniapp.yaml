@@ -3,15 +3,12 @@
 # keys (source_path/build_path/payment_packages) are read by the `gametegra` CLI.
 # See .claude/skills/gametegra-sdk for the field reference and gotchas.
 
-name: "Delivery Rush"
-
+name: "Kopernik"
 orientation: "portrait"
-
 menuButton:
-  enabled: true
-  opacity: 1.0
-  position: "top-right"
-
+    enabled: true
+    opacity: 1.0
+    position: "top-right"
 # Vite builds the runnable game into ./dist. `gametegra version build` zips the
 # CONTENTS of source_path (flattened to the zip root) into build_path/miniapp.zip.
 # Keep source_path and build_path as SIBLINGS (neither nested in the other) so the
@@ -19,25 +16,36 @@ menuButton:
 source_path: "./dist"
 build_path: "./release"
 build_name: "miniapp.zip"
-
 offered_age_rating: 9
-
 # Real-money gem packs. `code` is EXACTLY the string passed to
 # gameTegra.startPurchase(code). `amount` is the PRICE (placeholder — set the real
 # prices on DevPortal); the number of gems granted is mapped in src/data/gemPacks.ts.
 payment_packages:
-  - code: "gems_small"
-    amount: 10
-    display_name: "100 Elmas"
-    description: "Küçük elmas paketi"
-  - code: "gems_medium"
-    amount: 45
-    display_name: "550 Elmas"
-    description: "Orta elmas paketi — %10 bonus"
-  - code: "gems_large"
-    amount: 90
-    display_name: "1200 Elmas"
-    description: "Büyük elmas paketi — %20 bonus"
+    - code: "gems_small"
+      amount: 10
+      display_name: "300 Elmas"
+      description: "Küçük elmas paketi"
+    - code: "gems_medium"
+      amount: 45
+      display_name: "900 Elmas"
+      description: "Orta elmas paketi — %10 bonus"
+    - code: "gems_large"
+      amount: 90
+      display_name: "2000 Elmas"
+      description: "Büyük elmas paketi — %20 bonus"
+    - code: "coins_small"
+      amount: 10
+      display_name: "5.000 Coin"
+      description: "Küçük coin paketi"
+    - code: "coins_medium"
+      amount: 45
+      display_name: "15.000 Coin"
+      description: "Orta coin paketi"
+    - code: "coins_large"
+      amount: 90
+      display_name: "35.000 Coin"
+      description: "Büyük coin paketi"
+miniappid: "2079594174788669440"
 
 # `miniappid` is written here automatically by `gametegra connect` AFTER you create
 # the mini-game on developer.gametegra.com (the CLI cannot create the registration).

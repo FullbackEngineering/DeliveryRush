@@ -51,6 +51,7 @@ export interface VehicleModelOpts {
 const _box = new THREE.Box3();
 const _size = new THREE.Vector3();
 const _c = new THREE.Vector3();
+const COURIER_RIDER_SCALE = 1.35;
 
 // GLB sahnesi oyun aracına dönüştürülür: ölçek, oryantasyon, malzeme
 export function prepareVehicle(src: THREE.Object3D, opts: VehicleModelOpts): THREE.Group {
@@ -116,7 +117,15 @@ export function prepareVehicle(src: THREE.Object3D, opts: VehicleModelOpts): THR
   if (opts.rider) {
     _box.setFromObject(model);
     _box.getSize(_size);
-    holder.add(makeCourierRider(opts.riderColor ?? 0xef4444, _size.y * 0.36, -_size.z * 0.03));
+    const seatY = _size.y * 0.36;
+    const seatZ = -_size.z * 0.03;
+    const rider = makeCourierRider(opts.riderColor ?? 0xef4444, seatY, seatZ);
+    rider.name = 'CourierRider';
+    rider.scale.setScalar(COURIER_RIDER_SCALE);
+    // Scale around the hips instead of the holder origin so the courier stays
+    // planted on the saddle while the whole body grows to a believable size.
+    rider.position.set(0, seatY * (1 - COURIER_RIDER_SCALE), seatZ * (1 - COURIER_RIDER_SCALE));
+    holder.add(rider);
   }
   return holder;
 }

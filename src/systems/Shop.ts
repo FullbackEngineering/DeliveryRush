@@ -23,7 +23,7 @@ export function isShopItemOwned(
 ): boolean {
   if (item.category === 'boosts') return false;
   if (item.category === 'cards') return profile.ownedCards.includes(item.cardId);
-  return options.ownedItemIds?.has(item.id) ?? false;
+  return profile.ownedCosmetics.includes(item.id) || (options.ownedItemIds?.has(item.id) ?? false);
 }
 
 // Ürün görünümünü (durumu, bakiye, açık fiyat farkı) oluşturur.
@@ -56,4 +56,3 @@ export function getShopCategoryItems(
     .map((item) => getShopItemView(item, profile, options))
     .sort((a, b) => Number(b.item.featured ?? false) - Number(a.item.featured ?? false));
 }
-

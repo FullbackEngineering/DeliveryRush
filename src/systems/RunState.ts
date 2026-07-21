@@ -38,13 +38,10 @@ export class RunState {
     return Math.min(1, this.deliveries / Difficulty.rampDeliveries);
   }
 
-  /** Time limit granted to a freshly spawned order (shrinks with difficulty). */
-  // Yeni işler için zaman limitini zorluk seviyesine uygun olarak döndürür.
+  /** RUSH orders are untimed; the main run clock is the only timer. */
+  // RUSH siparişleri süresizdir; yalnızca ana koşu sayacı ilerler.
   orderTimeLimit(): number {
-    return Math.round(
-      Difficulty.orderTimeStart -
-        (Difficulty.orderTimeStart - Difficulty.orderTimeMin) * this.difficulty,
-    );
+    return Run.orderTimeLimit;
   }
 
   // Yeni işin VIP olma ihtimalini zorluk seviyesine uygun olarak döndürür.
@@ -83,7 +80,6 @@ export class RunState {
     }
     const had = this.streak > 0;
     this.streak = 0;
-    this.time = Math.max(0, this.time - 2);
     if (had) {
       bus.emit(GameEvent.ComboChanged, 0, 1);
       bus.emit(GameEvent.ComboBroken);

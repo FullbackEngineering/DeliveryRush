@@ -150,7 +150,7 @@ export class Orders3D {
   }
 
   get remainingFraction(): number {
-    return this.timeLimit > 0 ? clamp(this.timer / this.timeLimit, 0, 1) : 0;
+    return this.timeLimit > 0 ? clamp(this.timer / this.timeLimit, 0, 1) : 1;
   }
   get remainingTime(): number {
     return Math.max(0, this.timer);
@@ -200,14 +200,18 @@ export class Orders3D {
       return 'none';
     }
 
-    this.timer -= dt;
-    bus.emit(GameEvent.OrderTimer, this.remainingFraction, this.remainingTime);
-    if (this.timer <= 0) {
-      const expired = this.current;
-      this.hideAll();
-      this.current = null;
-      bus.emit(GameEvent.OrderExpired, expired);
-      return 'expire';
+    if (this.timeLimit > 0) {
+      this.timer -= dt;
+      bus.emit(GameEvent.OrderTimer, this.remainingFraction, this.remainingTime);
+      if (this.timer <= 0) {
+        const expired = this.current;
+        this.hideAll();
+        this.current = null;
+        bus.emit(GameEvent.OrderExpired, expired);
+        return 'expire';
+      }
+    } else {
+      bus.emit(GameEvent.OrderTimer, 1, Number.POSITIVE_INFINITY);
     }
 
     const node = this.current.pickedUp ? this.current.dropoff : this.current.pickup;

@@ -2,6 +2,7 @@ import { Job } from '@/types';
 import { formatTime } from '@/utils/MathUtils';
 import speedometerUrl from '@/assets/ui/speedometer.webp?url';
 import jobsButtonUrl from '@/assets/ui/jobs-button.webp?url';
+import coinIconUrl from '@/assets/ui/kopernik/coin-icon.webp?url';
 
 /**
  * Pure markup/CSS for `FreeHud`: the static DOM template, the job-row HTML
@@ -20,7 +21,7 @@ export function rowHtml(j: Job): string {
         <div class="dr-job-row-title">${j.special ? '⭐ ' : ''}${j.source.name} → ${j.dest.name}</div>
         <div class="dr-job-row-meta"><span>📍 ${km} km</span><span>⏱ ${formatTime(j.timeLimit)}</span><span>maks -${j.pay}</span></div>
       </div>
-      <div class="dr-job-row-pay">+${j.pay}<span>🪙</span></div>
+      <div class="dr-job-row-pay">+${j.pay}<img src="${coinIconUrl}" alt="coin"></div>
     </button>`;
 }
 
@@ -34,23 +35,21 @@ export function stopRowHtml(j: Job): string {
         <div class="dr-job-row-title">${j.special ? '⭐ ' : ''}→ ${j.dest.name}</div>
         <div class="dr-job-row-meta"><span>📍 ${km} km</span><span>⏱ ${formatTime(j.timeLimit)}</span><span>maks -${j.pay}</span></div>
       </div>
-      <div class="dr-job-row-pay">+${j.pay}<span>🪙</span></div>
+      <div class="dr-job-row-pay">+${j.pay}<img src="${coinIconUrl}" alt="coin"></div>
     </button>`;
 }
 
 export const FREE_HUD_TEMPLATE = `
   <div class="dr-free-top">
     <div class="dr-free-left">
-      <div class="dr-free-badge">🌆 SERBEST</div>
+      <button class="dr-free-menu">AYAR</button>
+      <div class="dr-free-wallet"><img src="${coinIconUrl}" alt="coin"><span>0</span></div>
       <button class="dr-free-jobs-btn"><span class="dr-free-jobs-icon"></span><span>İşler</span></button>
+      <div class="dr-free-badge">SERBEST</div>
     </div>
     <div class="dr-free-right">
-      <div class="dr-free-right-row">
-        <div class="dr-free-speed"><b>0</b><span>km/h</span></div>
-        <div class="dr-free-wallet">🪙 <span>0</span></div>
-        <button class="dr-free-menu">☰</button>
-      </div>
       <div class="dr-free-map-wrap"><canvas class="dr-free-map"></canvas></div>
+      <div class="dr-free-speed"><b>0</b><span>km/h</span></div>
     </div>
   </div>
   <div class="dr-job-active">
@@ -102,16 +101,17 @@ export function injectFreeHudStyle(): void {
     .dr-free * { box-sizing: border-box; }
     .dr-free > * { pointer-events: none; }
 
-    /* --- Top bar: left (badge + jobs), right (speed/wallet/menu + minimap) --- */
+    /* --- Top bar: clean left tool stack + map anchored at the top-right --- */
     .dr-free-top { position: fixed; top: calc(env(safe-area-inset-top,0px) + 10px); left: 12px; right: 12px;
       z-index: 6; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-    .dr-free-left, .dr-free-right, .dr-free-right-row { pointer-events: auto; display: flex; align-items: center; gap: 8px; }
+    .dr-free-left, .dr-free-right { pointer-events: auto; display: flex; align-items: center; gap: 8px; }
     .dr-free-right { flex-direction: column; align-items: flex-end; }
-    .dr-free-badge, .dr-free-wallet, .dr-free-speed { background: rgba(13,19,31,0.72);
-      border: 1px solid rgba(120,150,200,0.2); border-radius: 14px; padding: 8px 12px;
-      font-weight: 900; font-size: 14px; box-shadow: 0 4px 14px rgba(0,0,0,0.3); }
-    .dr-free-badge { border-left: 4px solid #5aa9ff; }
-    .dr-free-wallet { color: #ffd54a; }
+    .dr-free-badge, .dr-free-wallet { border: 0; border-radius: 0; padding: 2px 0;
+      font-weight: 1000; font-size: 13px; background: transparent; box-shadow: none;
+      text-shadow: 0 2px 5px rgba(0,0,0,.95),0 0 8px rgba(0,0,0,.75); }
+    .dr-free-badge { color: #72c5ff; letter-spacing: .08em; }
+    .dr-free-wallet { display:flex;align-items:center;gap:6px;color:#ffbd2f;font-size:16px; }
+    .dr-free-wallet img { width:25px;height:25px;object-fit:contain;filter:drop-shadow(0 2px 4px rgba(0,0,0,.8)); }
     .dr-free-speed { width: clamp(92px,24vw,112px); height: clamp(52px,13vw,62px); padding: 0 14px;
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; text-align: center;
       font-variant-numeric: tabular-nums; border: 0; border-radius: 0; box-shadow: none;
@@ -124,17 +124,19 @@ export function injectFreeHudStyle(): void {
     .dr-free-speed.over { color: #ffd7d7; filter: drop-shadow(0 0 6px rgba(239,68,68,.8));
       animation: dr-free-pulse .7s ease-in-out infinite; }
     .dr-free-speed.over span { color: #ffb3b3; }
-    .dr-free-jobs-btn, .dr-free-menu { background: rgba(13,19,31,0.72); border: 1px solid rgba(120,150,200,0.22);
-      color: #cdd8ea; border-radius: 14px; padding: 9px 12px; font-weight: 900; font-size: 13px; cursor: pointer;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.3); -webkit-tap-highlight-color: transparent; }
+    .dr-free-jobs-btn, .dr-free-menu { background: transparent; border: 0;
+      color: #fff; border-radius: 0; padding: 2px 0; font-weight: 1000; font-size: 13px; cursor: pointer;
+      box-shadow: none; text-shadow:0 2px 5px rgba(0,0,0,.95),0 0 8px rgba(0,0,0,.75);
+      -webkit-tap-highlight-color: transparent; }
     .dr-free-jobs-btn:active, .dr-free-menu:active { transform: translateY(2px); }
-    .dr-free-jobs-btn { display: flex; align-items: center; gap: 6px; padding: 5px 10px 5px 6px; }
-    .dr-free-jobs-icon { width: 34px; height: 34px; flex: 0 0 34px;
+    .dr-free-menu { color:#f3f7ff;letter-spacing:.08em; }
+    .dr-free-jobs-btn { display: flex; align-items: center; gap: 6px; }
+    .dr-free-jobs-icon { width: 30px; height: 30px; flex: 0 0 30px;
       background: url("${jobsButtonUrl}") center/contain no-repeat; }
-    .dr-free-left { flex-direction: column; align-items: flex-start; gap: 6px; }
+    .dr-free-left { flex-direction: column; align-items: flex-start; gap: 5px; }
 
     .dr-free-map-wrap { width: clamp(96px, 28vw, 128px); height: clamp(96px, 28vw, 128px); border-radius: 50%;
-      overflow: hidden; margin-top: 2px;
+      overflow: hidden; margin-top: 0;
       background: rgba(13,19,31,0.72); border: 1px solid rgba(120,150,200,0.22); box-shadow: 0 4px 14px rgba(0,0,0,0.3); }
     .dr-free-map { display: block; width: 100%; height: 100%; }
 
@@ -154,7 +156,8 @@ export function injectFreeHudStyle(): void {
       align-items: center; justify-content: center; background: rgba(255,255,255,0.06); border-radius: 9px; }
     .dr-job-active-info { flex: 1; min-width: 0; }
     .dr-job-active-title { font-weight: 800; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .dr-job-active-sub { font-size: 11px; color: #9fb0c9; margin-top: 1px; }
+    .dr-job-active-sub { font-size: 11px; color: #9fb0c9; margin-top: 1px; display:flex;align-items:center;gap:3px; }
+    .dr-inline-coin { width:15px;height:15px;object-fit:contain; }
     .dr-job-cancel { flex: 0 0 auto; background: rgba(239,68,68,0.14); border: 1px solid rgba(239,68,68,0.4);
       color: #ff9b9b; border-radius: 9px; padding: 6px 8px; font-weight: 800; font-size: 11px; cursor: pointer;
       -webkit-tap-highlight-color: transparent; }
@@ -198,7 +201,7 @@ export function injectFreeHudStyle(): void {
     .dr-job-row-pay { flex: 0 0 auto; display: flex; align-items: center; gap: 3px; font-weight: 900;
       font-size: 13px; color: #06280f; background: linear-gradient(180deg,#3ad07a,#28a35c);
       border-radius: 999px; padding: 5px 10px; box-shadow: 0 2px 6px rgba(0,0,0,.25); }
-    .dr-job-row-pay span { font-size: 11px; }
+    .dr-job-row-pay img { width:18px;height:18px;object-fit:contain; }
 
     /* --- Police chase banner (top-centre, below the top bar + active job card) --- */
     .dr-chase-banner { position: fixed; left: 50%; top: calc(env(safe-area-inset-top,0px) + 258px);
@@ -254,8 +257,9 @@ export function injectFreeHudStyle(): void {
 
     /* --- Floating reward text --- */
     .dr-free-float-layer { position: fixed; top: 46%; left: 0; right: 0; text-align: center; z-index: 7; }
-    .dr-free-float { font-weight: 900; font-size: 30px; text-shadow: 0 2px 10px rgba(0,0,0,0.6);
+    .dr-free-float { display:flex;align-items:center;justify-content:center;gap:5px;font-weight: 900; font-size: 30px; text-shadow: 0 2px 10px rgba(0,0,0,0.6);
       -webkit-text-stroke: 1.5px rgba(0,0,0,0.35); animation: dr-free-float 1.1s ease-out forwards; }
+    .dr-float-coin { width:30px;height:30px;object-fit:contain;filter:drop-shadow(0 2px 5px rgba(0,0,0,.65)); }
     @keyframes dr-free-float { 0%{opacity:0;transform:translateY(14px) scale(0.7)}
       20%{opacity:1;transform:translateY(0) scale(1.1)} 70%{opacity:1} 100%{opacity:0;transform:translateY(-50px) scale(1)} }
   `;

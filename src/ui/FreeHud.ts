@@ -6,6 +6,7 @@ import { Profile } from '@/managers/ProfileStore';
 import { hex } from '@/core/Palette';
 import { formatNumber } from '@/utils/MathUtils';
 import { FREE_HUD_TEMPLATE, injectFreeHudStyle, rowHtml, stopRowHtml } from './FreeHud.templates';
+import coinIconUrl from '@/assets/ui/kopernik/coin-icon.webp?url';
 
 /**
  * The whole SERBEST (free-roam) chrome as an HTML/CSS overlay in `#ui`: the top
@@ -124,7 +125,7 @@ export class FreeHud {
     this.on(GameEvent.Speeding, (over: boolean) => this.els.speedPill.classList.toggle('over', over));
     this.on(GameEvent.PoliceFine, (amount: number, reason: string) => {
       const why = reason === 'crash' ? 'kaza' : 'hız';
-      this.floatText(`🚨 -${amount} 🪙 (${why})`, '#ef4444');
+      this.floatText(`🚨 -${amount} {coin} (${why})`, '#ef4444');
     });
     this.on(GameEvent.ChaseStarted, () => this.els.chaseBanner.classList.add('show'));
     this.on(GameEvent.ChaseEnded, () => this.els.chaseBanner.classList.remove('show'));
@@ -255,7 +256,15 @@ export class FreeHud {
     const toPickup = job.state === 'toPickup';
     this.els.activeSub.textContent = toPickup
       ? `Al · ${job.source.name}`
-      : `Teslim et · ${job.dest.name} · +${job.pay} 🪙`;
+      : `Teslim et · ${job.dest.name} · +${job.pay} coin`;
+    if (!toPickup) {
+      this.els.activeSub.textContent = `Teslim et · ${job.dest.name} · +${job.pay} `;
+      const icon = document.createElement('img');
+      icon.className = 'dr-inline-coin';
+      icon.src = coinIconUrl;
+      icon.alt = 'coin';
+      this.els.activeSub.appendChild(icon);
+    }
     this.els.activeCard.classList.toggle('delivering', !toPickup);
   }
 
@@ -281,8 +290,8 @@ export class FreeHud {
   // İş teslim edilince ödül float text'i gösterir.
   private onDelivered(r: JobResult): void {
     this.hideActive();
-    this.floatText(`+${r.pay} 🪙`, '#37d67a');
-    if (r.penalty > 0) setTimeout(() => this.floatText(`-${r.penalty} 🪙`, '#ef4444'), 260);
+    this.floatText(`+${r.pay} {coin}`, '#37d67a');
+    if (r.penalty > 0) setTimeout(() => this.floatText(`-${r.penalty} {coin}`, '#ef4444'), 260);
   }
 
   // Aktif iş kartını gizler.
@@ -294,7 +303,15 @@ export class FreeHud {
   private floatText(text: string, color: string): void {
     const el = document.createElement('div');
     el.className = 'dr-free-float';
-    el.textContent = text;
+    const [before, after] = text.split('{coin}');
+    el.append(document.createTextNode(before));
+    if (after !== undefined) {
+      const icon = document.createElement('img');
+      icon.className = 'dr-float-coin';
+      icon.src = coinIconUrl;
+      icon.alt = 'coin';
+      el.append(icon, document.createTextNode(after));
+    }
     el.style.color = color;
     this.els.floatLayer.appendChild(el);
     setTimeout(() => el.remove(), 1100);

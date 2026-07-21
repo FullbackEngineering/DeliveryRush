@@ -1,6 +1,7 @@
 import { bus, GameEvent } from '@/core/EventBus';
 import { Order } from '@/types';
 import { formatNumber, formatTime } from '@/utils/MathUtils';
+import coinIconUrl from '@/assets/ui/kopernik/coin-icon.webp?url';
 
 interface RunSummary {
   coins: number;
@@ -63,7 +64,7 @@ export class Hud {
 
     (this.root.querySelector('.dr-retry') as HTMLElement).addEventListener('click', (e) => {
       e.preventDefault();
-      this.hideResults();
+      this.reset();
       this.onRetry();
     });
     (this.root.querySelector('.dr-menu') as HTMLElement).addEventListener('click', (e) => {
@@ -103,6 +104,9 @@ export class Hud {
   private reset(): void {
     this.els.coins.textContent = '0';
     this.els.score.textContent = '0';
+    this.els.timerVal.textContent = '3:00';
+    this.els.timerFill.style.transform = 'scaleX(1)';
+    this.els.timer.classList.remove('low');
     this.els.combo.classList.remove('show');
     this.hideResults();
     this.els.order.classList.remove('show');
@@ -136,9 +140,14 @@ export class Hud {
   private setOrder(o: Order, pickedUp: boolean): void {
     this.els.orderIcon.textContent = o.icon;
     this.els.orderKind.textContent = o.vip ? `⭐ ${o.kind}` : o.kind;
-    this.els.orderSub.textContent = pickedUp
-      ? `Teslim et · +${o.baseReward} 🪙`
-      : `Al · ${o.kind}`;
+    this.els.orderSub.textContent = pickedUp ? `Teslim et · +${o.baseReward} ` : `Al · ${o.kind}`;
+    if (pickedUp) {
+      const icon = document.createElement('img');
+      icon.className = 'dr-inline-coin';
+      icon.src = coinIconUrl;
+      icon.alt = 'coin';
+      this.els.orderSub.appendChild(icon);
+    }
     this.els.order.classList.toggle('vip', o.vip);
     this.els.order.classList.toggle('delivering', pickedUp);
     this.els.order.classList.add('show');
@@ -177,7 +186,7 @@ export class Hud {
   // Sipariş teslim edilince ödül float text'i gösterir.
   private onDelivered(o: Order): void {
     this.els.order.classList.remove('show');
-    this.floatText(`+${o.baseReward} 🪙`, '#37d67a');
+    this.floatText(`+${o.baseReward} {coin}`, '#37d67a');
   }
 
   // Kaçırılan sipariş animasyonunu çalar.
@@ -190,7 +199,15 @@ export class Hud {
   private floatText(text: string, color: string): void {
     const el = document.createElement('div');
     el.className = 'dr-float';
-    el.textContent = text;
+    const [before, after] = text.split('{coin}');
+    el.append(document.createTextNode(before));
+    if (after !== undefined) {
+      const icon = document.createElement('img');
+      icon.className = 'dr-float-coin';
+      icon.src = coinIconUrl;
+      icon.alt = 'coin';
+      el.append(icon, document.createTextNode(after));
+    }
     el.style.color = color;
     this.els.floatLayer.appendChild(el);
     setTimeout(() => el.remove(), 1100);
@@ -225,9 +242,9 @@ export class Hud {
 
 const TEMPLATE = `
   <div class="dr-top">
-    <div class="dr-pill dr-coins">🪙 <span>0</span></div>
+    <div class="dr-pill dr-coins"><img src="${coinIconUrl}" alt="coin"><span>0</span></div>
     <div class="dr-timer">
-      <div class="dr-timer-val">0:45</div>
+      <div class="dr-timer-val">3:00</div>
       <div class="dr-timer-bar"><i></i></div>
     </div>
     <div class="dr-pill dr-score">🏆 <span>0</span></div>
@@ -251,7 +268,7 @@ const TEMPLATE = `
       <div class="dr-r-grid">
         <div><b class="dr-r-deliveries">0</b><span>Teslimat</span></div>
         <div><b class="dr-r-combo">×0</b><span>En iyi kombo</span></div>
-        <div><b class="dr-r-coins">0</b><span>🪙 Coin</span></div>
+        <div><b class="dr-r-coins">0</b><span class="dr-result-currency"><img src="${coinIconUrl}" alt="coin"> KAZANÇ</span></div>
       </div>
       <div class="dr-r-actions">
         <button class="dr-menu">MENÜ</button>
@@ -278,6 +295,7 @@ function injectStyle(): void {
       padding: 8px 12px; font-weight: 800; font-size: 17px; min-width: 78px;
       display: flex; align-items: center; gap: 5px; box-shadow: 0 4px 14px rgba(0,0,0,0.3); }
     .dr-coins { color: #ffd54a; }
+    .dr-coins img{width:24px;height:24px;object-fit:contain}.dr-result-currency{display:flex!important;align-items:center;justify-content:center;gap:4px}.dr-result-currency img{width:18px;height:18px;object-fit:contain}
     .dr-score { margin-left: auto; color: #e6edf7; }
 
     .dr-timer { flex: 0 0 auto; text-align: center; min-width: 108px; }
@@ -308,11 +326,12 @@ function injectStyle(): void {
       background: rgba(255,255,255,0.06); border-radius: 12px; }
     .dr-order-info { flex: 1; min-width: 0; }
     .dr-order-kind { font-weight: 800; font-size: 17px; }
-    .dr-order-sub { font-size: 13px; color: #9fb0c9; margin: 1px 0 6px; }
-    .dr-order-timer { height: 6px; border-radius: 4px; background: rgba(255,255,255,0.14); overflow: hidden; }
+    .dr-order-sub { display:flex;align-items:center;gap:3px;font-size: 13px; color: #9fb0c9; margin: 1px 0 6px; }
+    .dr-inline-coin{width:17px;height:17px;object-fit:contain}
+    .dr-order-timer { display: none; }
     .dr-order-timer > i { display: block; height: 100%; width: 100%; transform-origin: left center;
       background: linear-gradient(90deg,#f5a524,#ffd06b); transition: transform .18s linear; }
-    .dr-order-urgent { flex: 0 0 auto; font-size: 11px; font-weight: 900; letter-spacing: 0.05em;
+    .dr-order-urgent { display: none; flex: 0 0 auto; font-size: 11px; font-weight: 900; letter-spacing: 0.05em;
       color: #fff; background: #ef4444; border-radius: 8px; padding: 4px 7px; opacity: 0;
       transform: scale(0.8); transition: opacity .2s, transform .2s; }
     .dr-order-urgent.show { opacity: 1; transform: scale(1); animation: dr-pulse .6s ease-in-out infinite; }
@@ -327,8 +346,9 @@ function injectStyle(): void {
 
     .dr-float-layer { position: absolute; top: 46%; left: 0; right: 0; text-align: center;
       pointer-events: none; }
-    .dr-float { font-weight: 900; font-size: 32px; text-shadow: 0 2px 10px rgba(0,0,0,0.6);
+    .dr-float { display:flex;align-items:center;justify-content:center;gap:5px;font-weight: 900; font-size: 32px; text-shadow: 0 2px 10px rgba(0,0,0,0.6);
       -webkit-text-stroke: 1.5px rgba(0,0,0,0.35); animation: dr-float 1.1s ease-out forwards; }
+    .dr-float-coin{width:31px;height:31px;object-fit:contain;filter:drop-shadow(0 2px 5px rgba(0,0,0,.65))}
     @keyframes dr-float { 0%{opacity:0;transform:translateY(14px) scale(0.7)}
       20%{opacity:1;transform:translateY(0) scale(1.1)} 70%{opacity:1} 100%{opacity:0;transform:translateY(-50px) scale(1)} }
 

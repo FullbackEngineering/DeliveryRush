@@ -1,9 +1,19 @@
 import { CardEffectId, PlayerProfile } from '@/types';
-import type { ShopItem } from '@/data/shopItems';
+import { SHOP_ITEMS } from '@/data/shopItems';
+import type { ShopCardItem, ShopItem } from '@/data/shopItems';
 import { SaveManager } from '@/managers/SaveManager';
 import { bus, GameEvent } from '@/core/EventBus';
 import { Services } from '@/services/ServiceLocator';
 import { VEHICLE_MAP, upgradeCost } from '@/data/vehicles';
+
+export const DAILY_CARD_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
+export interface DailyCardReward {
+  item: ShopCardItem | null;
+  fallbackCoins: number;
+  claimedAt: number;
+  nextClaimAt: number;
+}
 
 /**
  * In-memory owner of the player profile and the single place allowed to mutate
@@ -67,6 +77,7 @@ class ProfileStoreImpl {
       this.profile.level += 1;
     }
     if (score > this.profile.highScore) this.profile.highScore = score;
+    if (coinsEarned > this.profile.bestRushCoins) this.profile.bestRushCoins = Math.round(coinsEarned);
     Services.analytics.track('run_end', { coinsEarned, deliveries, score });
     void Services.leaderboard.submitScore(this.profile.name, this.profile.highScore);
     bus.emit(GameEvent.CoinsChanged, this.profile.coins);
@@ -137,6 +148,31 @@ class ProfileStoreImpl {
   // Kartın mevcut seviyesini döndürür, varsayılan 1.
   cardLevel(id: CardEffectId): number {
     return this.profile.cardLevels[id] ?? 1;
+  }
+
+  dailyCardRemainingMs(now = Date.now()): number {
+    return Math.max(0, this.profile.lastDailyCardClaimAt + DAILY_CARD_COOLDOWN_MS - now);
+  }
+
+  /** Grants one unowned market card, then starts the persistent 24-hour timer. */
+  claimDailyCard(now = Date.now()): DailyCardReward | null {
+    if (this.dailyCardRemainingMs(now) > 0) return null;
+    const cards = SHOP_ITEMS.filter((item): item is ShopCardItem => item.category === 'cards');
+    const available = cards.filter((item) => !this.profile.ownedCards.includes(item.cardId));
+    const item = available.length > 0
+      ? available[Math.floor(now / DAILY_CARD_COOLDOWN_MS) % available.length]
+      : null;
+    const fallbackCoins = item ? 0 : 250;
+    if (item) {
+      this.profile.ownedCards.push(item.cardId);
+      this.profile.cardLevels[item.cardId] = this.profile.cardLevels[item.cardId] ?? 1;
+    } else {
+      this.profile.coins += fallbackCoins;
+      bus.emit(GameEvent.CoinsChanged, this.profile.coins);
+    }
+    this.profile.lastDailyCardClaimAt = now;
+    this.commit();
+    return { item, fallbackCoins, claimedAt: now, nextClaimAt: now + DAILY_CARD_COOLDOWN_MS };
   }
 
   // --- Shop (market: cards / cosmetics / consumable boosts) ----------------

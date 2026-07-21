@@ -5,6 +5,7 @@ import { VehicleDef } from '@/types';
 import { Garage } from '@/core/Balance';
 import { CarPreview } from '@/world/CarPreview';
 import { formatNumber, invLerp } from '@/utils/MathUtils';
+import coinIconUrl from '@/assets/ui/kopernik/coin-icon.webp?url';
 
 /**
  * Native HTML/CSS overlay for the Garage / Car Gallery screen (see
@@ -142,7 +143,7 @@ export class GarageScreen {
       if (def.unlockCost >= 0) {
         const afford = coins >= def.unlockCost;
         html += `<button class="dr-gar-btn primary dr-gar-unlock"${afford ? '' : ' disabled'}>`
-          + `AÇ · 🪙${formatNumber(def.unlockCost)}</button>`;
+          + `AÇ · <img class="dr-gar-coin" src="${coinIconUrl}" alt="coin">${formatNumber(def.unlockCost)}</button>`;
       } else {
         html += `<button class="dr-gar-btn locked" disabled>🔒 PREMIUM</button>`;
       }
@@ -157,7 +158,7 @@ export class GarageScreen {
         const cost = upgradeCost(def, level);
         const can = Profile.canUpgradeVehicle(def.id);
         row.push(`<button class="dr-gar-btn upgrade dr-gar-upgrade"${can ? '' : ' disabled'}>`
-          + `YÜKSELT · 🪙${formatNumber(cost)}</button>`);
+          + `YÜKSELT · <img class="dr-gar-coin" src="${coinIconUrl}" alt="coin">${formatNumber(cost)}</button>`);
       } else {
         row.push(`<button class="dr-gar-btn locked" disabled>MAKS SEVİYE</button>`);
       }
@@ -190,7 +191,7 @@ export class GarageScreen {
 const TEMPLATE = `
   <div class="dr-gar-top">
     <button class="dr-gar-back">←</button>
-    <div class="dr-gar-wallet">🪙 <span>0</span></div>
+    <div class="dr-gar-wallet"><img src="${coinIconUrl}" alt="coin"><span>0</span></div>
   </div>
 
   <button class="dr-gar-nav dr-gar-prev" aria-label="Önceki araç">‹</button>
@@ -240,9 +241,10 @@ function injectStyle(): void {
       color: #cdd8ea; border-radius: 14px; width: 40px; height: 40px; font-weight: 900; font-size: 18px;
       cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.3); -webkit-tap-highlight-color: transparent; }
     .dr-gar-back:active { transform: translateY(2px); }
-    .dr-gar-wallet { background: rgba(13,19,31,0.72); border: 1px solid rgba(120,150,200,0.2);
+    .dr-gar-wallet { display:flex;align-items:center;gap:6px;background: rgba(13,19,31,0.72); border: 1px solid rgba(120,150,200,0.2);
       border-radius: 14px; padding: 9px 14px; font-weight: 900; font-size: 14px; color: #ffd54a;
       box-shadow: 0 4px 14px rgba(0,0,0,0.3); }
+    .dr-gar-wallet img{width:24px;height:24px;object-fit:contain}.dr-gar-coin{width:20px;height:20px;object-fit:contain;vertical-align:middle;margin:0 3px}
 
     .dr-gar-nav { position: fixed; top: 60%; transform: translateY(-50%);
       width: clamp(42px, 12vw, 54px); height: clamp(42px, 12vw, 54px); border-radius: 50%;

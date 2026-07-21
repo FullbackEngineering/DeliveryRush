@@ -1,9 +1,9 @@
 {
-  "name": "delivery-rush",
+  "name": "kopernik",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Delivery Rush — a polished casual arcade courier game (Phaser 3 + TypeScript + Vite).",
+  "description": "Kopernik — a polished 3D arcade courier game built with Three.js, TypeScript and Vite.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -14,6 +14,7 @@
     "playtest:touch": "node tools/playtest/touch.mjs",
     "playtest:mobile-controls": "node tools/playtest/mobile-controls.mjs",
     "playtest:ui-assets": "node tools/playtest/ui-assets.mjs",
+    "playtest:kopernik-ui": "node tools/playtest/kopernik-ui.mjs",
     "playtest:drive": "node tools/playtest/three-drive.mjs",
     "playtest:loop": "node tools/playtest/three-loop.mjs",
     "playtest:modes": "node tools/playtest/three-modes.mjs",

@@ -150,6 +150,34 @@ Yeni dosyalar:
 
 ---
 
+# KOPERNIK ana menü, market ve liderlik entegrasyonu — 21 Temmuz 2026
+
+## Görsel entegrasyon
+
+- Onaylanan KOPERNİK giriş, kart marketi, elmas/coin mağazası ve liderlik
+  görselleri 390x844 mobil oyun ekranına kayıpsız WebP olarak uyarlandı.
+- Görsel kompozisyon korunarak erişilebilir gerçek HTML dokunma alanları eklendi;
+  FPS işareti ve görselin üstüne binen yinelenen cüzdan metinleri kaldırıldı.
+
+## İşlevler
+
+- Giriş ekranındaki RUSH, SERBEST, GARAJ, MARKET, günlük kart, reklam ödülü ve
+  liderlik girişleri gerçek yönlendirmelere bağlandı.
+- Market kart satın alma, kategori seçme, +20 elmas reklamı ve para mağazası
+  akışları çalışıyor. Para mağazası 3 elmas ve 3 coin paketini Gametegra satın
+  alma köprüsüne bağlıyor.
+- Liderlik ekranında toplam coin, tek RUSH koşusunda kazanılan en iyi coin ve
+  toplam teslimat kategorileri service katmanından yükleniyor.
+- Oyun adı görünür yüzeylerde ve mini-app tanımında KOPERNİK olarak güncellendi.
+
+## Doğrulama
+
+- `npm run playtest:kopernik-ui`: PASS (390x844, hata yok, ödül ve sekmeler çalışıyor).
+- `npm run build`: PASS.
+- `design-qa.md`: PASS; referans/uygulama karşılaştırması kaydedildi.
+
+---
+
 # Netlify checkout duzeltmesi — 21 Temmuz 2026
 
 - `.claude/worktrees/` altindaki sekiz yerel Claude calisma agaci, yanlislikla
@@ -167,6 +195,14 @@ Yeni dosyalar:
 - Kart genisligi 340 px ile sinirlandi ve ortalandi; ikon, metin, iptal dugmesi,
   bosluklar ve sure cubugu birlikte kucultuldu.
 - Siparis bilgisi, acil/gec kalma durumlari ve iptal etkilesimi korunuyor.
+
+## Scooter kurye olcegi — 21 Temmuz 2026
+
+- Scooter uzerindeki prosedurel kurye, motora gore cok kucuk gorundugu icin
+  `1.35x` buyutuldu.
+- Olcekleme kalca/sele noktasi etrafinda yapiliyor; surucu buyurken seleden
+  yukari kalkmiyor veya ileri-geri kaymiyor.
+- Ayni hazirlama yolu oyun ici scooter ve garaj onizlemesinde kullaniliyor.
 
 ---
 
@@ -700,3 +736,77 @@ araç varyantıyla değiştirildi.
 - `tools/playtest/shots/ui-assets-orders.png`
 - `package.json`
 - `CODEX_WORK_LOG.md`
+
+---
+
+# RUSH sabit 3 dakika ve ana menü dokunma hizası — 21 Temmuz 2026
+
+- RUSH ana sayacı 3:00 olarak sabitlendi; teslimat süre eklemiyor ve çarpışma süre düşürmüyor.
+- RUSH siparişlerinin süre sonu kaldırıldı; sipariş timer/ACELE göstergesi gizlendi.
+- Koşu 0:00 olduğunda mevcut `SÜRE DOLDU` sonuç ekranı açılmaya devam ediyor.
+- Ana menüdeki RUSH, SERBEST, GARAJ ve MARKET dokunma alanları görsel butonlarla yeniden hizalandı.
+- Kullanıcının isteğiyle playtest çalıştırılmadı; `npm run typecheck` PASS.
+
+---
+
+# Günlük kart, gerçek GameTegra reklamı ve canlı market/liderlik — 21 Temmuz 2026
+
+- Günlük kart artık Profile üzerinden gerçek bir kart verir; alındığı an kalıcı
+  24 saatlik cooldown başlar ve ana menü ile popup üzerinde saniye saniye görünür.
+- GameTegra init promise'i tekilleştirildi. Reklam ve satın alma çağrıları SDK
+  hazır olmadan düşmüyor; rewarded reklamlar dolu adKey, loading ve metadata ile
+  gerçek `gameTegra.showAd` komutuna gidiyor.
+- Market ve elmas/coin mağazasındaki ekran görüntüsü hotspot'ları kaldırıldı.
+  Kategoriler, ürün kartları, fiyatlar, satın alma, cüzdan ve reklam CTA'ları
+  görünür gerçek DOM kontrolleri olarak yeniden kuruldu.
+- Liderlik ekranındaki resme basılı sahte liste kaldırıldı. Üç kategori de gerçek
+  DOM satırları üretir; SuperApp içinde GameTegra leaderboard verisi, host dışında
+  service katmanındaki offline veri kullanılır.
+- Önceki görseller yalnızca karartılmış atmosfer/marka asset'i olarak korunur;
+  oyuncu verisi ve etkileşim görselin içine basılı değildir.
+# KOPERNİK UI asset ayrıştırması — 21 Temmuz 2026
+
+- Tam ekran mockup görsellerinin runtime kullanımı kaldırıldı. Menü, market, para
+  mağazası ve liderlik için etkileşimsiz, temiz arka plan plakaları üretildi.
+- Menü modları, günlük kart, reklam ödülü, market ürünleri, satın alma düğmeleri,
+  cüzdan, sekmeler ve liderlik satırları gerçek DOM kontrolleridir; resim hotspot'u yoktur.
+- Ürün, elmas, coin ve liderlik avatarı ayrı raster assetler olarak üretildi ve ilgili
+  veri kartlarına bağlandı.
+- Yeni assetler WebP'e çevrilip ekran/slot boyutlarına indirildi; dört arka planın toplamı
+  yaklaşık 563 KB, dört küçük assetin toplamı yaklaşık 38 KB oldu.
+- `npm run typecheck` ve `npm run build` PASS. Kullanıcı isteğiyle browser playtest yapılmadı.
+
+---
+# SERBEST HUD düzeni ve para ikonları — 21 Temmuz 2026
+
+- Scoop kullanıcı profiline kuruldu; Scoop üzerinden ngrok 3.39.9 yüklendi.
+- Turuncu lightning coin ve mavi elmas için şeffaf, 128px WebP HUD assetleri üretildi.
+- Market, para mağazası, ana menü, RUSH HUD, SERBEST HUD, garaj ve liderlikteki
+  para değerleri metin/emoji yerine ortak coin/elmas ikonlarını kullanıyor.
+- SERBEST mini haritası sağ üst köşeye sabitlendi; hız göstergesi haritanın altına alındı.
+- AYAR, coin bakiyesi, İŞLER ve SERBEST kontrolleri arka plansız bir sol üst dikey
+  araç grubuna dönüştürüldü.
+- `npm run typecheck` ve `npm run build` PASS. Kullanıcı isteğiyle browser playtest yapılmadı.
+
+---
+# KOPERNİK giriş kapağı — 21 Temmuz 2026
+
+- Ana menüye KOPERNİK şehir/scooter görselini koruyan ayrı bir giriş durumu eklendi.
+- İlk açılışta yalnızca gerçek `START NOW` butonu görünür; basılınca mevcut mod ve
+  ödül menüsü açılır.
+- Sağ üstte iki ayrı, şeffaf WebP asset kullanan müzik açık/kapalı kontrolü eklendi.
+  Tercih localStorage'da kalıcıdır, mevcut audio öğelerini mute eder ve
+  `kopernik:music-toggle` olayı yayınlar.
+- `v1.0.0` etiketi müzik kontrolünün altında sağ üstte gösterilir.
+- Kullanıcı isteğiyle browser playtest yapılmadı; typecheck/build ile doğrulandı.
+
+---
+# KOPERNİK logo ve GameTegra publish hazırlığı — 21 Temmuz 2026
+
+- KOPERNİK için paket + yörünge/yıldırım motifli ana oyun logosu üretildi.
+- Şeffaf kaynak `src/assets/ui/kopernik/kopernik-logo.png`, optimize WebP sürümü
+  `kopernik-logo.webp` ve GameTegra'nın beklediği 256×256 kök `logo.png` hazırlandı.
+- GameTegra publish skill'i, CLI bilinen sorunları ve manifest gereksinimleri okundu.
+- Kullanıcının isteğiyle publish tetiklenmedi; gerçek TTY'de çalıştırması için komut akışı verilecek.
+
+---

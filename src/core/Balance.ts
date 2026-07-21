@@ -9,11 +9,12 @@
 
 export const Run = {
   /** Starting run clock (seconds). */
-  startTime: 45,
-  /** Time granted per successful delivery. */
-  timePerDelivery: 7,
-  /** Max clock (prevents infinite banking). */
-  maxTime: 60,
+  startTime: 180,
+  /** RUSH is fixed at three minutes; deliveries never change the clock. */
+  timePerDelivery: 0,
+  maxTime: 180,
+  /** Zero means an active order never expires. */
+  orderTimeLimit: 0,
   /** Countdown before "GO". */
   introCountdown: 3,
   /** Countdown pacing — kept snappy so the run starts fast. */

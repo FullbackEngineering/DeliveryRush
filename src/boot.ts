@@ -22,6 +22,7 @@ import { ModeSelect } from '@/ui/ModeSelect';
 import { GarageScreen } from '@/ui/GarageScreen';
 import { MarketScreen } from '@/ui/MarketScreen';
 import { GemShop } from '@/ui/GemShop';
+import { LeaderboardScreen } from '@/ui/LeaderboardScreen';
 import { CarPreview } from '@/world/CarPreview';
 import { RunController } from '@/systems/RunController';
 import { JobBoard } from '@/systems/JobBoard';
@@ -34,6 +35,7 @@ import { RUSH_CITY, FREE_CITY, Nav, Garage as GarageBalance } from '@/core/Balan
 import { Palette } from '@/core/Palette';
 import { initGametegra } from '@/services/gametegra/gametegra';
 import { installRushGametegra, wrapRushRetry } from '@/services/gametegra/rushBridge';
+import { watchAdForCoins, watchAdForGems } from '@/services/gametegra/gems';
 
 /**
  * Delivery Rush — Three.js core with a mode picker. RUSH is the 60-second delivery
@@ -83,6 +85,7 @@ const goMenu = () => { window.location.href = window.location.pathname; };
 // FPS ve render çağrılarını canlı aracın bilgisiyle günceller.
 /** Wire the shared dev/fps readout to a live vehicle. */
 function wireFps(vehicle: Vehicle3D): void {
+  if (fpsEl) fpsEl.style.display = 'block';
   let acc = 0;
   game.onUpdate((dt) => {
     acc += dt;
@@ -319,9 +322,15 @@ function startGarage(): void {
 // Pazar ekranını başlatır: kartlar, boost'lar, kozmetik öğeler.
 function startMarket(): void {
   game.start(); // render the sky behind the market overlay
-  const market = new MarketScreen({ mount: ui, onClose: goMenu });
+  const gemShop = new GemShop(ui, { showTrigger: false });
+  const market = new MarketScreen({
+    mount: ui,
+    onClose: goMenu,
+    onCurrencyRequested: () => gemShop.open(),
+    onLeaderboardRequested: () => { window.location.search = '?mode=leaderboard'; },
+    onRewardAd: watchAdForGems,
+  });
   market.open();
-  new GemShop(ui); // real-money gem packs + rewarded-ad gems (Gametegra IAP)
   // Harness hook (stable shape — mirrors the other modes).
   (window as unknown as Record<string, unknown>).__three = {
     market: true,
@@ -330,6 +339,18 @@ function startMarket(): void {
     screen: market,
     game,
     bus,
+    profile: Profile,
+  };
+}
+
+// --- LEADERBOARD: coin / rush / delivery rankings -------------------------
+function startLeaderboard(): void {
+  game.start();
+  const screen = new LeaderboardScreen(ui, goMenu);
+  (window as unknown as Record<string, unknown>).__three = {
+    leaderboard: true,
+    screen,
+    game,
     profile: Profile,
   };
 }
@@ -450,11 +471,14 @@ async function preloadCop(): Promise<void> {
     // The market is a native-DOM overlay over the sky — no world/car needed.
     document.getElementById('loading')?.remove();
     startMarket();
+  } else if (mode === 'leaderboard') {
+    document.getElementById('loading')?.remove();
+    startLeaderboard();
   } else {
     document.getElementById('loading')?.remove();
     game.start(); // render the sky behind the picker
     new ModeSelect(ui, (pick) => {
       window.location.search = `?mode=${pick}`;
-    });
+    }, watchAdForCoins);
   }
 })();

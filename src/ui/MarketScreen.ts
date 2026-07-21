@@ -1,9 +1,13 @@
+import marketArtUrl from '@/assets/ui/kopernik/kopernik-market-bg.webp?url';
+import marketItemArtUrl from '@/assets/ui/kopernik/kopernik-market-item.webp?url';
+import coinIconUrl from '@/assets/ui/kopernik/coin-icon.webp?url';
+import gemIconUrl from '@/assets/ui/kopernik/gem-icon.webp?url';
 import { SHOP_CATEGORIES, SHOP_ITEMS } from '@/data/shopItems';
 import type { ShopCategory, ShopItem } from '@/data/shopItems';
 import { Profile } from '@/managers/ProfileStore';
 import { bus, GameEvent } from '@/core/EventBus';
-import { getShopCategoryItems } from '@/systems/Shop';
-import type { ShopItemView, ShopReadModelOptions } from '@/systems/Shop';
+import { getShopCategoryItems, getShopItemView } from '@/systems/Shop';
+import type { ShopReadModelOptions } from '@/systems/Shop';
 import type { PlayerProfile } from '@/types';
 
 export interface MarketScreenOptions extends ShopReadModelOptions {
@@ -11,27 +15,20 @@ export interface MarketScreenOptions extends ShopReadModelOptions {
   initialCategory?: ShopCategory;
   getProfile?: () => Readonly<PlayerProfile>;
   onClose?: () => void;
-  /** The host owns spending, granting, persistence, audio and analytics. */
   onPurchaseRequested?: (item: ShopItem) => void;
+  onCurrencyRequested?: () => void;
+  onLeaderboardRequested?: () => void;
+  onRewardAd?: () => Promise<boolean>;
 }
 
-const STYLE_ID = 'delivery-rush-market-style';
-
-/** Standalone native-DOM market. It does not register routes or mutate profile state. */
 export class MarketScreen {
   private readonly root: HTMLDivElement;
-  private readonly options: MarketScreenOptions;
   private readonly getProfile: () => Readonly<PlayerProfile>;
   private category: ShopCategory;
-  private previouslyFocused: HTMLElement | null = null;
-  /** Re-render live while open when the profile (coins/gems/ownership) changes. */
-  private readonly onProfileChanged = (): void => {
-    if (!this.root.hidden) this.render();
-  };
+  private busy = false;
 
-  // Market ekranını kurar ve profile değişikliklerini dinlemeye başlar.
-  constructor(options: MarketScreenOptions = {}) {
-    this.options = options;
+  constructor(private readonly options: MarketScreenOptions = {}) {
+    installStyles();
     this.getProfile = options.getProfile ?? (() => Profile.get());
     this.category = options.initialCategory ?? 'cards';
     this.root = document.createElement('div');
@@ -39,250 +36,198 @@ export class MarketScreen {
     this.root.hidden = true;
     this.root.setAttribute('role', 'dialog');
     this.root.setAttribute('aria-modal', 'true');
-    this.root.setAttribute('aria-label', 'Market');
+    this.root.setAttribute('aria-label', 'Kopernik Market');
     this.root.addEventListener('click', this.onClick);
-    this.root.addEventListener('keydown', this.onKeyDown);
-
-    installStyles();
     (options.mount ?? document.body).appendChild(this.root);
     bus.on(GameEvent.ProfileChanged, this.onProfileChanged);
   }
 
-  // Market ekranını açar ve fokus yönetimini sağlar.
-  open(): void {
-    if (!this.root.hidden) return;
-    this.previouslyFocused = document.activeElement as HTMLElement | null;
-    this.root.hidden = false;
-    this.render();
-    requestAnimationFrame(() => this.root.querySelector<HTMLElement>('[data-close]')?.focus());
-  }
-
-  // Market ekranını kapatır ve önceki element'e fokus döner.
-  close(): void {
-    if (this.root.hidden) return;
-    this.root.hidden = true;
-    this.previouslyFocused?.focus();
-    this.options.onClose?.();
-  }
-
-  // Satın alma sonrası profile değişikliklerini yeniden okur.
-  refresh(): void {
-    if (!this.root.hidden) this.render();
-  }
-
-  // Event listener'ları kaldırıp ekranı DOM'dan çıkarır.
+  open(): void { this.root.hidden = false; this.render(); }
+  close(): void { this.root.hidden = true; this.options.onClose?.(); }
+  refresh(): void { if (!this.root.hidden) this.render(); }
   destroy(): void {
     bus.off(GameEvent.ProfileChanged, this.onProfileChanged);
     this.root.removeEventListener('click', this.onClick);
-    this.root.removeEventListener('keydown', this.onKeyDown);
     this.root.remove();
   }
 
-  // Kategori/satın alma/kapatma buton tıklamalarını ve aksiyonları işler.
+  private readonly onProfileChanged = (): void => { if (!this.root.hidden) this.render(); };
   private readonly onClick = (event: MouseEvent): void => {
     const target = (event.target as HTMLElement).closest<HTMLElement>('[data-action]');
     if (!target || !this.root.contains(target)) return;
-
     const action = target.dataset.action;
-    if (action === 'close') {
-      this.close();
-      return;
-    }
-
+    if (action === 'close') return this.close();
+    if (action === 'currency') return this.options.onCurrencyRequested?.();
+    if (action === 'leaderboard') return this.options.onLeaderboardRequested?.();
+    if (action === 'reward') return void this.claimReward();
     if (action === 'category') {
-      const category = target.dataset.category as ShopCategory | undefined;
-      if (SHOP_CATEGORIES.some((entry) => entry.id === category)) {
-        this.category = category!;
+      const next = target.dataset.category as ShopCategory;
+      if (SHOP_CATEGORIES.some((entry) => entry.id === next)) {
+        this.category = next;
         this.render();
       }
       return;
     }
-
     if (action === 'buy') {
       const item = SHOP_ITEMS.find((entry) => entry.id === target.dataset.itemId);
-      if (!item) return;
-      // The single mutation point does the spend + grant; ProfileChanged re-renders us.
-      const ok = Profile.purchaseShopItem(item);
-      if (ok) {
-        bus.emit(GameEvent.Haptic, 'light');
-        this.options.onPurchaseRequested?.(item);
-      }
-      this.render();
+      if (item) this.buy(item);
     }
   };
 
-  // Escape tuşu basıldığında market'i kapatır.
-  private readonly onKeyDown = (event: KeyboardEvent): void => {
-    if (event.key === 'Escape') this.close();
-  };
+  private buy(item: ShopItem): void {
+    const view = getShopItemView(item, this.getProfile(), this.options);
+    if (view.state === 'owned') return this.showToast('BU ÜRÜN ZATEN SENDE');
+    if (view.state === 'insufficient-funds') {
+      this.showToast('BAKİYE YETERSİZ — MAĞAZA AÇILIYOR');
+      window.setTimeout(() => this.options.onCurrencyRequested?.(), 350);
+      return;
+    }
+    const ok = Profile.purchaseShopItem(item);
+    if (ok) {
+      this.options.onPurchaseRequested?.(item);
+      this.showToast(`${item.name.toLocaleUpperCase('tr-TR')} ALINDI`);
+    } else {
+      this.showToast('SATIN ALMA TAMAMLANAMADI');
+    }
+  }
 
-  // Market kategorisini ve ürünlerini HTML'den render eder.
+  private async claimReward(): Promise<void> {
+    if (this.busy || !this.options.onRewardAd) return;
+    this.busy = true;
+    this.render();
+    const ok = await this.options.onRewardAd();
+    this.busy = false;
+    this.render();
+    this.showToast(ok ? '+20 KAZANDIN' : 'REKLAM TAMAMLANMADI', ok ? gemIconUrl : undefined);
+  }
+
+  private showToast(message: string, iconUrl?: string): void {
+    const toast = this.root.querySelector<HTMLElement>('.dr-market__toast');
+    if (!toast) return;
+    toast.replaceChildren();
+    if (iconUrl) {
+      const icon = document.createElement('img'); icon.src = iconUrl; icon.alt = ''; toast.append(icon);
+    }
+    toast.append(document.createTextNode(message));
+    toast.classList.add('show');
+    window.setTimeout(() => toast.classList.remove('show'), 1900);
+  }
+
   private render(): void {
     const profile = this.getProfile();
-    // Cosmetic ownership comes straight from the profile; merge over any host-supplied ids.
-    const ownedItemIds = new Set<string>([
-      ...profile.ownedCosmetics,
-      ...(this.options.ownedItemIds ?? []),
-    ]);
-    const views = getShopCategoryItems(SHOP_ITEMS, this.category, profile, {
-      ...this.options,
-      ownedItemIds,
-    });
-
+    const views = getShopCategoryItems(SHOP_ITEMS, this.category, profile, this.options);
     this.root.innerHTML = `
-      <section class="dr-market__shell">
+      <div class="dr-market__art" aria-hidden="true"></div>
+      <main class="dr-market__ui">
         <header class="dr-market__header">
-          <div>
-            <span class="dr-market__eyebrow">DELIVERY RUSH</span>
-            <h1>Market</h1>
-          </div>
-          <div class="dr-market__wallet" aria-label="Cüzdan">
-            <span>🪙 ${formatNumber(profile.coins)}</span>
-            <span>💎 ${formatNumber(profile.gems)}</span>
-          </div>
-          <button class="dr-market__close" data-action="close" data-close aria-label="Marketi kapat">×</button>
+          <button class="dr-market__back" data-action="close" aria-label="Menüye dön">GERİ</button>
+          <div class="dr-market__brand"><small>KOPERNİK</small><b>MARKET</b></div>
+          <button class="dr-market__leader" data-action="leaderboard">LİDERLİK</button>
         </header>
+        <button class="dr-market__wallet" data-action="currency" aria-label="Elmas ve coin mağazasını aç">
+          <span><img src="${coinIconUrl}" alt="coin"><b>${formatNumber(profile.coins)}</b></span>
+          <span><img src="${gemIconUrl}" alt="elmas"><b>${formatNumber(profile.gems)}</b></span>
+          <i>+</i>
+        </button>
         <nav class="dr-market__tabs" aria-label="Market kategorileri">
-          ${SHOP_CATEGORIES.map(
-            (entry) => `<button
-              data-action="category"
-              data-category="${entry.id}"
-              class="${entry.id === this.category ? 'is-active' : ''}"
-              aria-pressed="${entry.id === this.category}"
-            ><span>${entry.icon}</span>${entry.label}</button>`,
-          ).join('')}
+          ${SHOP_CATEGORIES.map((entry) => `<button class="${entry.id === this.category ? 'selected' : ''}"
+            data-action="category" data-category="${entry.id}">${entry.label.toLocaleUpperCase('tr-TR')}</button>`).join('')}
         </nav>
-        <main class="dr-market__content">
-          <div class="dr-market__section-title">
-            <h2>${categoryTitle(this.category)}</h2>
-            <span>${views.length} ürün</span>
-          </div>
-          <div class="dr-market__grid">
-            ${views.map(renderItem).join('')}
-          </div>
-        </main>
-      </section>`;
+        <section class="dr-market__list" aria-label="${views.length} ürün">
+          ${views.map(({ item, state }, index) => renderItem(item, state, index)).join('')}
+        </section>
+        <button class="dr-market__reward" data-action="reward" ${this.busy ? 'disabled' : ''}>
+          <b>${this.busy ? 'REKLAM AÇILIYOR…' : 'REKLAM İZLE'}</b><strong>+20 <img src="${gemIconUrl}" alt="elmas"></strong>
+        </button>
+      </main>
+      <div class="dr-market__toast" role="status" aria-live="polite"></div>`;
   }
 }
 
-// Ürün kartı HTML'i oluşturur (ikon, ad, açıklama, fiyat).
-function renderItem(view: ShopItemView): string {
-  const { item, state } = view;
-  const isOwned = state === 'owned';
-  const canBuy = state === 'affordable';
-  const label = isOwned
-    ? 'Sende var'
-    : canBuy
-      ? `${currencyIcon(item.price.currency)} ${formatNumber(item.price.amount)}`
-      : `${currencyIcon(item.price.currency)} ${formatNumber(item.price.amount)}`;
-
-  return `<article class="dr-market__card dr-market__card--${item.rarity}">
-    ${item.featured ? '<span class="dr-market__featured">ÖNE ÇIKAN</span>' : ''}
-    <div class="dr-market__icon" aria-hidden="true">${item.icon}</div>
-    <div class="dr-market__copy">
-      <span class="dr-market__rarity">${rarityLabel(item.rarity)}</span>
-      <h3>${escapeHtml(item.name)}</h3>
-      <p>${escapeHtml(item.description)}</p>
+function renderItem(item: ShopItem, state: 'owned' | 'affordable' | 'insufficient-funds', index: number): string {
+  const icon = item.price.currency === 'gems' ? gemIconUrl : coinIconUrl;
+  const price = `<span class="dr-price"><img src="${icon}" alt=""><b>${formatNumber(item.price.amount)}</b></span>`;
+  return `<article class="dr-market-card rarity-${item.rarity}">
+    <div class="dr-market-card__icon art-${index % 3}" aria-hidden="true"><img src="${marketItemArtUrl}" alt=""></div>
+    <div class="dr-market-card__copy">
+      <h2>${escapeHtml(item.name)}</h2><em>${rarityLabel(item.rarity)}</em><p>${escapeHtml(item.description)}</p>
     </div>
-    <button
-      class="dr-market__buy ${isOwned ? 'is-owned' : ''}"
-      data-action="buy"
-      data-item-id="${item.id}"
-      ${canBuy ? '' : 'disabled'}
-      aria-label="${escapeHtml(item.name)}: ${label}"
-    >${label}</button>
-    ${state === 'insufficient-funds' ? `<small>${currencyIcon(item.price.currency)} ${formatNumber(view.shortfall)} eksik</small>` : ''}
+    <button data-action="buy" data-item-id="${item.id}" class="state-${state}">
+      ${state === 'owned' ? 'SENDE' : price}
+    </button>
   </article>`;
 }
 
-// Kategori ID'sine ait Türkçe başlığını döner.
-function categoryTitle(category: ShopCategory): string {
-  if (category === 'cards') return 'Yetenek kartları';
-  if (category === 'boosts') return 'Tek koşuluk boostlar';
-  return 'Aracına stil kat';
+function rarityLabel(value: string): string {
+  return ({ common: 'STANDART', rare: 'NADİR', epic: 'DESTANSI', legendary: 'EFSANEVİ' } as Record<string, string>)[value] ?? value;
 }
-
-// Para birimi türüne ait emoji'yi döner.
-function currencyIcon(currency: 'coins' | 'gems'): string {
-  return currency === 'coins' ? '🪙' : '💎';
-}
-
-// Ürün nadirliğine ait Türkçe etiketini döner.
-function rarityLabel(rarity: string): string {
-  const labels: Record<string, string> = {
-    common: 'SIRADAN',
-    rare: 'NADİR',
-    epic: 'DESTANSI',
-    legendary: 'EFSANEVİ',
-  };
-  return labels[rarity] ?? rarity.toUpperCase();
-}
-
-// Sayıyı Türkçe format'ında gösterir (binlik ayracı).
-function formatNumber(value: number): string {
-  return new Intl.NumberFormat('tr-TR').format(value);
-}
-
-// HTML karakterlerini escape ederek XSS'den korur.
+function formatNumber(value: number): string { return new Intl.NumberFormat('tr-TR').format(value); }
 function escapeHtml(value: string): string {
-  const element = document.createElement('span');
-  element.textContent = value;
-  return element.innerHTML;
+  const span = document.createElement('span'); span.textContent = value; return span.innerHTML;
 }
 
-// Market CSS stillerini document'e enjekte eder.
+let styled = false;
 function installStyles(): void {
-  if (document.getElementById(STYLE_ID)) return;
+  if (styled) return;
+  styled = true;
   const style = document.createElement('style');
-  style.id = STYLE_ID;
   style.textContent = `
-    .dr-market { position: fixed; inset: 0; z-index: 80; pointer-events: auto; color: #eef6ff; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: radial-gradient(circle at 50% -15%, #203862 0, #0b1527 38%, #070d18 100%); overflow: auto; overscroll-behavior: contain; }
-    .dr-market[hidden] { display: none; }
-    .dr-market * { box-sizing: border-box; }
-    .dr-market button { font: inherit; }
-    .dr-market__shell { width: min(100%, 720px); min-height: 100%; margin: 0 auto; padding: max(20px, env(safe-area-inset-top)) 18px max(28px, env(safe-area-inset-bottom)); }
-    .dr-market__header { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 12px; }
-    .dr-market__header h1 { margin: 2px 0 0; font-size: clamp(28px, 7vw, 42px); line-height: 1; letter-spacing: -1.5px; }
-    .dr-market__eyebrow { color: #37d67a; font-size: 11px; font-weight: 900; letter-spacing: 2px; }
-    .dr-market__wallet { display: flex; gap: 7px; }
-    .dr-market__wallet span { padding: 9px 11px; border: 1px solid #334563; border-radius: 999px; background: #111e33cc; font-size: 13px; font-weight: 800; white-space: nowrap; }
-    .dr-market__close { width: 42px; height: 42px; border: 1px solid #354762; border-radius: 14px; color: #b9c8dc; background: #152238; font-size: 27px; cursor: pointer; }
-    .dr-market__tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 24px 0; padding: 5px; border: 1px solid #273752; border-radius: 18px; background: #0a1322aa; }
-    .dr-market__tabs button { min-height: 50px; border: 0; border-radius: 13px; color: #8393aa; background: transparent; font-weight: 800; cursor: pointer; transition: 150ms ease; }
-    .dr-market__tabs button span { margin-right: 7px; }
-    .dr-market__tabs button.is-active { color: #fff; background: linear-gradient(135deg, #235b47, #173f44); box-shadow: inset 0 0 0 1px #3cd58a66, 0 5px 14px #0005; }
-    .dr-market__section-title { display: flex; align-items: baseline; justify-content: space-between; margin: 0 2px 13px; }
-    .dr-market__section-title h2 { margin: 0; font-size: 19px; }
-    .dr-market__section-title span { color: #71839c; font-size: 12px; font-weight: 700; }
-    .dr-market__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-    .dr-market__card { position: relative; display: flex; min-height: 260px; flex-direction: column; padding: 16px; overflow: hidden; border: 1px solid #2a3b57; border-radius: 22px; background: linear-gradient(160deg, #17243a 0%, #0f192a 100%); box-shadow: 0 14px 30px #0003; }
-    .dr-market__card::before { content: ''; position: absolute; width: 120px; height: 120px; right: -34px; top: -42px; border-radius: 50%; background: var(--rarity, #94a3b8); filter: blur(45px); opacity: .2; }
-    .dr-market__card--common { --rarity: #94a3b8; }
-    .dr-market__card--rare { --rarity: #3b82f6; }
-    .dr-market__card--epic { --rarity: #8b5cf6; }
-    .dr-market__card--legendary { --rarity: #ffd54a; }
-    .dr-market__featured { position: absolute; z-index: 1; top: 12px; right: 12px; padding: 5px 7px; border-radius: 7px; color: #07150e; background: #37d67a; font-size: 8px; font-weight: 1000; letter-spacing: .8px; }
-    .dr-market__icon { display: grid; width: 68px; height: 68px; place-items: center; margin-bottom: 13px; border: 1px solid color-mix(in srgb, var(--rarity) 55%, #fff0); border-radius: 19px; background: color-mix(in srgb, var(--rarity) 15%, #0d1728); font-size: 34px; }
-    .dr-market__copy { flex: 1; }
-    .dr-market__rarity { color: var(--rarity); font-size: 9px; font-weight: 1000; letter-spacing: 1.3px; }
-    .dr-market__copy h3 { margin: 4px 0 6px; font-size: 16px; line-height: 1.15; }
-    .dr-market__copy p { margin: 0 0 14px; color: #8fa2bc; font-size: 12px; line-height: 1.45; }
-    .dr-market__buy { width: 100%; min-height: 42px; border: 0; border-radius: 13px; color: #07150e; background: linear-gradient(135deg, #37d67a, #2bb46a); font-size: 13px; font-weight: 900; cursor: pointer; box-shadow: 0 7px 18px #1ca96838; }
-    .dr-market__buy:disabled { color: #718198; background: #26334a; box-shadow: none; cursor: default; }
-    .dr-market__buy.is-owned { color: #6ecf9d; background: #18382f; }
-    .dr-market__card small { margin-top: 6px; color: #f09090; text-align: center; font-size: 10px; font-weight: 700; }
-    .dr-market button:focus-visible { outline: 3px solid #5ea6ff; outline-offset: 2px; }
-    @media (max-width: 430px) {
-      .dr-market__shell { padding-inline: 12px; }
-      .dr-market__header { grid-template-columns: 1fr auto; }
-      .dr-market__wallet { grid-row: 2; grid-column: 1 / -1; justify-self: stretch; }
-      .dr-market__wallet span { flex: 1; text-align: center; }
-      .dr-market__close { grid-column: 2; grid-row: 1; }
-      .dr-market__grid { gap: 9px; }
-      .dr-market__card { min-height: 270px; padding: 13px; border-radius: 18px; }
-      .dr-market__featured { position: static; align-self: flex-start; margin: -2px 0 8px; }
-      .dr-market__icon { width: 58px; height: 58px; font-size: 29px; }
-    }
+    .dr-market { position:fixed; inset:0; z-index:80; overflow:hidden; pointer-events:auto; color:#fff;
+      background:#06101f; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; }
+    .dr-market[hidden] { display:none; }
+    .dr-market * { box-sizing:border-box; }
+    .dr-market__art { position:absolute; inset:0; background:url("${marketArtUrl}") center/cover no-repeat;
+      filter:brightness(.58) saturate(.9); transform:scale(1.02); }
+    .dr-market__ui { position:absolute; inset:0; display:flex; flex-direction:column; gap:9px;
+      padding:calc(env(safe-area-inset-top,0px) + 9px) 12px calc(env(safe-area-inset-bottom,0px) + 10px); }
+    .dr-market button { cursor:pointer; -webkit-tap-highlight-color:transparent; }
+    .dr-market__header { display:grid; grid-template-columns:48px 1fr 80px; align-items:center; gap:8px; }
+    .dr-market__back,.dr-market__leader { min-height:42px; border:2px solid #27d7ff; border-radius:11px;
+      color:#dffaff; background:#071725; font-weight:1000; }
+    .dr-market__leader { border-color:#ffbd32; color:#ffda69; font-size:10px; }
+    .dr-market__brand { text-align:center; line-height:.94; text-shadow:0 3px 0 #000; }
+    .dr-market__brand small,.dr-market__brand b { display:block; font-weight:1000; }
+    .dr-market__brand small { color:#ffbd2f; font-size:13px; letter-spacing:.12em; }
+    .dr-market__brand b { color:#49ddff; font-size:28px; }
+    .dr-market__wallet { display:flex; align-items:center; justify-content:center; gap:8px; min-height:44px;
+      border:2px solid #259ed0; border-radius:12px; color:#fff; background:#081522; font-size:12px; }
+    .dr-market__wallet span { display:flex;align-items:center;gap:5px;padding:5px 10px; border-right:1px solid #29445e; }
+    .dr-market__wallet span img { width:22px;height:22px;object-fit:contain; }
+    .dr-market__wallet span b { color:#ffd442; }
+    .dr-market__wallet span:nth-child(2) b { color:#49ddff; }
+    .dr-market__wallet i { display:grid; place-items:center; width:25px; height:25px; border-radius:7px;
+      color:#06101f; background:#44ddff; font-style:normal; font-size:20px; font-weight:1000; }
+    .dr-market__tabs { display:grid; grid-template-columns:repeat(3,1fr); gap:5px; }
+    .dr-market__tabs button { min-height:38px; border:2px solid #2a4b69; border-radius:9px; color:#9eb3ca;
+      background:#0a1725; font-size:11px; font-weight:1000; }
+    .dr-market__tabs button.selected { border-color:#ffb82c; color:#271700; background:#ffbd2f; }
+    .dr-market__list { flex:1; min-height:0; display:flex; flex-direction:column; gap:8px; overflow-y:auto;
+      overscroll-behavior:contain; padding:1px 1px 5px; }
+    .dr-market-card { flex:0 0 auto; display:grid; grid-template-columns:76px 1fr 82px; align-items:center; gap:8px;
+      min-height:118px; padding:9px; border:2px solid #1fa8d5; border-radius:13px; background:#071321;
+      box-shadow:0 5px 0 #03101a; }
+    .dr-market-card.rarity-epic { border-color:#a84cff; }.dr-market-card.rarity-legendary { border-color:#ffae24; }
+    .dr-market-card__icon { position:relative; width:72px; height:86px; overflow:hidden; border:2px solid #2ccbea;
+      border-radius:11px; background:#0c2235; }
+    .dr-market-card__icon img { width:100%; height:100%; object-fit:cover; pointer-events:none; }
+    .dr-market-card__copy { min-width:0; }.dr-market-card h2 { margin:0; color:#45dcff; font-size:15px; line-height:1.05; }
+    .dr-market-card em { display:inline-block; margin:4px 0; padding:2px 5px; border-radius:4px; color:#d8c4ff;
+      background:#39205a; font-size:8px; font-style:normal; font-weight:900; }
+    .dr-market-card p { margin:0; color:#aebed0; font-size:9px; line-height:1.25; }
+    .dr-market-card > button { min-height:44px; padding:5px; border:2px solid #ffd25b; border-radius:9px;
+      color:#241600; background:#ffb82c; font-size:10px; font-weight:1000; }
+    .dr-market-card > button.state-owned { border-color:#3c536d; color:#8ca0b5; background:#172638; }
+    .dr-market-card > button.state-insufficient-funds { color:#fff; background:#9f5b0b; }
+    .dr-price{display:flex;align-items:center;justify-content:center;gap:5px}.dr-price img{width:20px;height:20px;object-fit:contain}
+    .dr-market__reward { display:grid; grid-template-columns:1fr auto; align-items:center; gap:7px; min-height:58px;
+      border:3px solid #1ce57d; border-radius:13px; color:#fff; background:#07301f; box-shadow:0 5px 0 #03180f; }
+    .dr-market__reward:disabled { opacity:.65; }.dr-market__reward b { font-size:14px; }.dr-market__reward strong { color:#35e6ff; font-size:14px; }
+    .dr-market__reward strong{display:flex;align-items:center;gap:5px}.dr-market__reward strong img{width:21px;height:21px;object-fit:contain}
+    .dr-market__toast { position:absolute; z-index:8; left:50%; top:48%; min-width:240px; padding:12px 15px;
+      transform:translate(-50%,-8px); border:2px solid #39dcff; border-radius:12px; color:#fff; background:#071321;
+      display:flex;align-items:center;justify-content:center;gap:6px;text-align:center; font-size:12px; font-weight:1000; opacity:0; pointer-events:none; transition:.18s ease; }
+    .dr-market__toast img{width:22px;height:22px;object-fit:contain}
+    .dr-market__toast.show { opacity:1; transform:translate(-50%,0); }
   `;
   document.head.appendChild(style);
 }

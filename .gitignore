@@ -3,6 +3,7 @@
 
 # Build output
 /dist
+/release
 .vite
 
 # Reference-only upstream framework — it ships with its OWN nested git repo and

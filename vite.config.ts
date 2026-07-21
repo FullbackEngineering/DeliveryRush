@@ -13,6 +13,7 @@ export default defineConfig({
   },
   server: {
     host: true,
+    allowedHosts: ['epidural-suffix-slingshot.ngrok-free.dev'],
     port: 5173,
     open: false,
   },

@@ -22,6 +22,7 @@ const HIGHSCORE_KEY = 'highscore';
 const LEADERBOARD_ID = 'highscore';
 
 let host = false; // true once a real host bridge has answered waitUntilReady()
+let initPromise: Promise<boolean> | null = null;
 
 // Promise'i verilen süre sonunda reddederek askıda kalmayı önler (timer temizlenir).
 function withTimeout<T>(p: Promise<T> | T, ms = CALL_TIMEOUT_MS): Promise<T> {
@@ -39,15 +40,19 @@ export function isHost(): boolean {
 
 // SDK hazır olana kadar bekler; host yoksa sessizce düz-web moduna düşer.
 export async function initGametegra(): Promise<boolean> {
+  if (initPromise) return initPromise;
   applySafeArea(); // senkron, host beklemeden hemen uygula
-  try {
-    await withTimeout(gameTegra.waitUntilReady(), CALL_TIMEOUT_MS);
-    host = true;
-    applySafeArea(); // host geldi — gerçek insets'i tekrar uygula
-  } catch {
-    host = false; // host yok (düz tarayıcı) — tüm çağrılar no-op olur
-  }
-  return host;
+  initPromise = (async () => {
+    try {
+      await withTimeout(gameTegra.waitUntilReady(), CALL_TIMEOUT_MS);
+      host = true;
+      applySafeArea();
+    } catch {
+      host = false;
+    }
+    return host;
+  })();
+  return initPromise;
 }
 
 // Çentik/güvenli-alan insets'lerini --sa-* CSS değişkenlerine yazar (senkron).
@@ -153,10 +158,67 @@ export async function getTopScore(myOwnerId: string | null): Promise<{ score: nu
   }
 }
 
+export interface GametegraBoardEntry {
+  rank: number;
+  name: string;
+  score: number;
+  isPlayer: boolean;
+}
+
+/** Creates/syncs one Kopernik board and returns live host records. Null means
+ * there is no SuperApp host, so callers can deliberately use their offline data. */
+export async function getKopernikLeaderboard(
+  id: 'coins' | 'rush_coins' | 'deliveries',
+  playerName: string,
+  playerScore: number,
+): Promise<GametegraBoardEntry[] | null> {
+  if (!(await initGametegra())) return null;
+  let ownerId: string | null = null;
+  try {
+    await withTimeout(gameTegra.createLeaderboard({
+      id,
+      sortOrder: 'desc',
+      operator: 'best',
+      metadata: { title: `Kopernik ${id}` },
+    }), CALL_TIMEOUT_MS);
+  } catch {
+    /* idempotent create */
+  }
+  try {
+    const update = (await withTimeout(gameTegra.updateLeaderboard({
+      id,
+      score: Math.max(0, Math.round(playerScore)),
+      metadata: { name: playerName },
+    }), CALL_TIMEOUT_MS)) as { data?: { owner_id?: string | number } };
+    ownerId = update?.data?.owner_id != null ? String(update.data.owner_id) : null;
+    const response = (await withTimeout(gameTegra.getLeaderboard({ id, limit: 20 }), CALL_TIMEOUT_MS)) as {
+      data?: { records?: Array<{ score?: number | string; owner_id?: string | number; metadata?: { name?: string }; rank?: number }> };
+    };
+    return (response?.data?.records ?? []).map((record, index) => {
+      const recordOwner = String(record.owner_id ?? '');
+      const isPlayer = ownerId != null && recordOwner === ownerId;
+      return {
+        rank: Number(record.rank) || index + 1,
+        name: isPlayer ? playerName : record.metadata?.name || `KURYE_${recordOwner.slice(-4) || index + 1}`,
+        score: Number(record.score) || 0,
+        isPlayer,
+      };
+    });
+  } catch {
+    return null;
+  }
+}
+
 // Geçiş (interstitial) reklamı gösterir; başarısızlık oyuncuyu asla bloklamaz.
 export async function showInterstitial(adKey: string): Promise<void> {
+  if (!(await initGametegra())) return;
   try {
-    await withTimeout(gameTegra.showAd({ adKey, placement: 'interstitial' }), CALL_TIMEOUT_MS);
+    await withTimeout(gameTegra.showAd({
+      adKey,
+      placement: 'interstitial',
+      showLoading: true,
+      metadata: { source: 'kopernik' },
+    }), CALL_TIMEOUT_MS);
   } catch {
     /* ad failure never blocks the player */
   }
@@ -164,8 +226,14 @@ export async function showInterstitial(adKey: string): Promise<void> {
 
 // Ödüllü (rewarded) reklam gösterir; sonuna kadar izlenirse true döndürür.
 export async function showRewarded(adKey: string): Promise<boolean> {
+  if (!(await initGametegra())) return false;
   try {
-    const res = await withTimeout(gameTegra.showAd({ adKey, placement: 'rewarded' }), CALL_TIMEOUT_MS);
+    const res = await withTimeout(gameTegra.showAd({
+      adKey,
+      placement: 'rewarded',
+      showLoading: true,
+      metadata: { source: 'kopernik', rewardRequested: true },
+    }), CALL_TIMEOUT_MS);
     return res?.status === 'completed';
   } catch {
     return false;
@@ -174,6 +242,7 @@ export async function showRewarded(adKey: string): Promise<boolean> {
 
 // Gerçek-para satın alma başlatır (miniapp.yaml'daki payment_packages code'u); başarıyı döndürür.
 export async function startPurchase(code: string): Promise<boolean> {
+  if (!(await initGametegra())) return false;
   try {
     const res = (await withTimeout(gameTegra.startPurchase({ code }), CALL_TIMEOUT_MS)) as {
       onHostSuccess?: boolean;

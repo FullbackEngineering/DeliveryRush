@@ -19,6 +19,8 @@ export function defaultProfile(): PlayerProfile {
     coins: 500,
     gems: 50,
     highScore: 0,
+    bestRushCoins: 0,
+    lastDailyCardClaimAt: 0,
     totalDeliveries: 0,
     selectedVehicle: 'starter',
     vehicleLevels: { starter: 1 },
