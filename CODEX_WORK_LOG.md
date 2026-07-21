@@ -150,6 +150,18 @@ Yeni dosyalar:
 
 ---
 
+# Netlify checkout duzeltmesi — 21 Temmuz 2026
+
+- `.claude/worktrees/` altindaki sekiz yerel Claude calisma agaci, yanlislikla
+  Git submodule girdisi (`160000` gitlink) olarak izleniyordu.
+- Bu girdiler Git indeksinden cikarildi; yerel calisma agaci klasorleri
+  silinmedi.
+- Tekrar eklenmelerini onlemek icin `.claude/worktrees/` `.gitignore` dosyasina
+  eklendi.
+- Oyun kaynak koduna ve canli entegrasyon yuzeylerine dokunulmadi.
+
+---
+
 # Polis devriye AI trafik kurallari duzeltmesi — 20 Temmuz 2026
 
 ## Kok neden ve uygulama

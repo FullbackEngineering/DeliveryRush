@@ -19,6 +19,7 @@
 
 # Local Claude Code settings (machine-specific perms/paths)
 .claude/settings.local.json
+.claude/worktrees/
 
 # Logs
 *.log
