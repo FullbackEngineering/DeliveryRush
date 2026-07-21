@@ -58,20 +58,6 @@
          specificity (1,0,0) beats the component class rules (0,1,0) and forces
          EVERY overlay to one value — which made the whole mode-select/market/
          garage screens un-tappable. */
-      #fps {
-        position: fixed;
-        top: env(safe-area-inset-top, 6px);
-        left: 8px;
-        z-index: 20;
-        color: #b8f5c8;
-        font-family: ui-monospace, "SF Mono", Menlo, monospace;
-        font-size: 13px;
-        background: rgba(7, 12, 22, 0.55);
-        padding: 3px 7px;
-        border-radius: 6px;
-        pointer-events: none;
-        display: none;
-      }
       #loading {
         position: fixed;
         inset: 0;
@@ -91,7 +77,6 @@
   <body>
     <div id="app"></div>
     <div id="ui"></div>
-    <div id="fps">…</div>
     <div id="loading">Kopernik…</div>
     <script type="module" src="/src/boot.ts"></script>
   </body>
