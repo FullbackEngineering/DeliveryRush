@@ -139,25 +139,26 @@ export function injectFreeHudStyle(): void {
     .dr-free-map { display: block; width: 100%; height: 100%; }
 
     /* --- Active job card (sits just under the top bar + minimap column) --- */
-    .dr-job-active { position: fixed; top: calc(env(safe-area-inset-top,0px) + 176px); left: 12px; right: 12px;
+    .dr-job-active { position: fixed; top: calc(env(safe-area-inset-top,0px) + 176px); left: 50%; right: auto;
+      width: min(340px, calc(100vw - 24px));
       z-index: 6; pointer-events: auto; background: rgba(13,19,31,0.8); backdrop-filter: blur(8px);
-      border: 1px solid rgba(120,150,200,0.2); border-left: 4px solid #f5a524; border-radius: 16px;
-      padding: 10px 12px; opacity: 0; transform: translateY(-10px); pointer-events: none;
+      border: 1px solid rgba(120,150,200,0.2); border-left: 4px solid #f5a524; border-radius: 14px;
+      padding: 7px 9px; opacity: 0; transform: translate(-50%,-10px); pointer-events: none;
       transition: opacity .22s ease, transform .22s ease; box-shadow: 0 8px 22px rgba(0,0,0,0.4); }
-    .dr-job-active.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    .dr-job-active.show { opacity: 1; transform: translate(-50%,0); pointer-events: auto; }
     .dr-job-active.delivering { border-left-color: #37d67a; }
     .dr-job-active.urgent .dr-job-active-title { animation: dr-free-pulse .6s ease-in-out infinite; }
     .dr-job-active.late { border-left-color: #ef4444; }
-    .dr-job-active-head { display: flex; align-items: center; gap: 10px; }
-    .dr-job-active-icon { font-size: 26px; width: 40px; height: 40px; flex: 0 0 40px; display: flex;
-      align-items: center; justify-content: center; background: rgba(255,255,255,0.06); border-radius: 10px; }
+    .dr-job-active-head { display: flex; align-items: center; gap: 8px; }
+    .dr-job-active-icon { font-size: 22px; width: 34px; height: 34px; flex: 0 0 34px; display: flex;
+      align-items: center; justify-content: center; background: rgba(255,255,255,0.06); border-radius: 9px; }
     .dr-job-active-info { flex: 1; min-width: 0; }
-    .dr-job-active-title { font-weight: 800; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .dr-job-active-sub { font-size: 12px; color: #9fb0c9; margin-top: 2px; }
+    .dr-job-active-title { font-weight: 800; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .dr-job-active-sub { font-size: 11px; color: #9fb0c9; margin-top: 1px; }
     .dr-job-cancel { flex: 0 0 auto; background: rgba(239,68,68,0.14); border: 1px solid rgba(239,68,68,0.4);
-      color: #ff9b9b; border-radius: 10px; padding: 7px 10px; font-weight: 800; font-size: 12px; cursor: pointer;
+      color: #ff9b9b; border-radius: 9px; padding: 6px 8px; font-weight: 800; font-size: 11px; cursor: pointer;
       -webkit-tap-highlight-color: transparent; }
-    .dr-job-active-bar { height: 5px; margin-top: 8px; border-radius: 4px; background: rgba(255,255,255,0.14); overflow: hidden; }
+    .dr-job-active-bar { height: 4px; margin-top: 6px; border-radius: 4px; background: rgba(255,255,255,0.14); overflow: hidden; }
     .dr-job-active-bar > i { display: block; height: 100%; width: 100%; transform-origin: left center;
       background: linear-gradient(90deg,#f5a524,#ffd06b); transition: transform .18s linear; }
     .dr-job-active.delivering .dr-job-active-bar > i { background: linear-gradient(90deg,#37d67a,#8ef0b0); }

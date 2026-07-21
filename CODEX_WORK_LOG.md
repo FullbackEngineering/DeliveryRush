@@ -160,6 +160,14 @@ Yeni dosyalar:
   eklendi.
 - Oyun kaynak koduna ve canli entegrasyon yuzeylerine dokunulmadi.
 
+## Aktif siparis karti kompakt UI — 21 Temmuz 2026
+
+- SERBEST modunda siparis kabul edildiginde acilan aktif siparis karti mobil
+  ekranda daha az yer kaplayacak sekilde daraltildi.
+- Kart genisligi 340 px ile sinirlandi ve ortalandi; ikon, metin, iptal dugmesi,
+  bosluklar ve sure cubugu birlikte kucultuldu.
+- Siparis bilgisi, acil/gec kalma durumlari ve iptal etkilesimi korunuyor.
+
 ---
 
 # Polis devriye AI trafik kurallari duzeltmesi — 20 Temmuz 2026
