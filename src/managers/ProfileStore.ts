@@ -35,6 +35,18 @@ class ProfileStoreImpl {
     bus.emit(GameEvent.ProfileChanged, this.profile);
   }
 
+  /**
+   * Adopts the player's real SuperApp nickname as their leaderboard display
+   * name. Called once on boot with `getUserInfo().name`; offline play keeps
+   * whatever name the save already holds.
+   */
+  setName(name: string): void {
+    const clean = name.trim().slice(0, 24);
+    if (!clean || clean === this.profile.name) return;
+    this.profile.name = clean;
+    this.commit();
+  }
+
   // --- Economy ------------------------------------------------------------
   // Oyuncuya para ekler, 0'ın altında düşmeyi engeller.
   addCoins(n: number): void {

@@ -33,7 +33,7 @@ import { Profile } from '@/managers/ProfileStore';
 import { VEHICLE_MAP, VEHICLES, driveStatsAtLevel } from '@/data/vehicles';
 import { RUSH_CITY, FREE_CITY, Nav, Garage as GarageBalance } from '@/core/Balance';
 import { Palette } from '@/core/Palette';
-import { initGametegra } from '@/services/gametegra/gametegra';
+import { getPlayerName, initGametegra } from '@/services/gametegra/gametegra';
 import { installRushGametegra, wrapRushRetry } from '@/services/gametegra/rushBridge';
 import { watchAdForCoins, watchAdForGems } from '@/services/gametegra/gems';
 
@@ -437,6 +437,9 @@ async function preloadCop(): Promise<void> {
   // Gametegra SuperApp bridge: applies safe-area insets immediately, then waits
   // for the host (timeout-safe, inert no-op in a plain browser). Non-blocking.
   void initGametegra();
+  // Leaderboards show the player's real SuperApp nickname instead of the local
+  // placeholder. Silently keeps the saved name when there's no host.
+  void getPlayerName().then((name) => { if (name) Profile.setName(name); });
   if (mode === 'rush' || mode === 'free') {
     await preloadCar();
     if (mode === 'free') await preloadCop(); // patrol police only exist in SERBEST

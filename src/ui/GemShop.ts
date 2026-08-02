@@ -56,25 +56,26 @@ export class GemShop {
     const pack = GEM_PACKS[index];
     if (this.busy || !pack) return;
     this.busy = true; this.render();
-    const ok = await buyGems(pack);
-    this.busy = false; this.render();
-    this.showToast(ok ? `+${formatNumber(pack.gems)} KAZANDIN` : 'SATIN ALMA TAMAMLANMADI', ok ? gemIconUrl : undefined);
+    // `finally` so a failed/timed-out payment can never leave the buttons locked.
+    const outcome = await buyGems(pack).finally(() => { this.busy = false; this.render(); });
+    // Cancel (player closed the payment sheet) is NOT an error — stay silent.
+    if (outcome.ok) this.showToast(`+${formatNumber(pack.gems)} KAZANDIN`, gemIconUrl);
+    else if (!outcome.cancelled) this.showToast('SATIN ALMA TAMAMLANMADI');
   }
 
   private async onBuyCoins(index: number): Promise<void> {
     const pack = COIN_PACKS[index];
     if (this.busy || !pack) return;
     this.busy = true; this.render();
-    const ok = await buyCoins(pack);
-    this.busy = false; this.render();
-    this.showToast(ok ? `+${formatNumber(pack.coins)} KAZANDIN` : 'SATIN ALMA TAMAMLANMADI', ok ? coinIconUrl : undefined);
+    const outcome = await buyCoins(pack).finally(() => { this.busy = false; this.render(); });
+    if (outcome.ok) this.showToast(`+${formatNumber(pack.coins)} KAZANDIN`, coinIconUrl);
+    else if (!outcome.cancelled) this.showToast('SATIN ALMA TAMAMLANMADI');
   }
 
   private async onAd(): Promise<void> {
     if (this.busy) return;
     this.busy = true; this.render();
-    const ok = await watchAdForGems();
-    this.busy = false; this.render();
+    const ok = await watchAdForGems().finally(() => { this.busy = false; this.render(); });
     this.showToast(ok ? `+${AD_GEM_REWARD} KAZANDIN` : 'REKLAM TAMAMLANMADI', ok ? gemIconUrl : undefined);
   }
 
