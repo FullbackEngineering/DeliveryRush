@@ -1,6 +1,6 @@
 import { bus, GameEvent } from '@/core/EventBus';
 import {
-  isHost,
+  ensureHostReady,
   vibrate,
   loadHighscore,
   saveHighscore,
@@ -39,7 +39,9 @@ export function installRushGametegra(): void {
 // Koşu bitince: titreşim + rekor + lider tablosu + analitik (hepsi host varsa).
 async function onGameOver(s: RunSummary): Promise<void> {
   lastScore = s.score;
-  if (!isHost()) return; // SuperApp yok — gönderilecek bir şey yok
+  // Boot'taki tek denemeye güvenme — soğuk WebView'de o deneme timeout'a düşmüş
+  // olabilir; her koşu sonunda host hazırlığını yeniden dene.
+  if (!(await ensureHostReady())) return; // SuperApp yok — gönderilecek bir şey yok
 
   vibrate(); // tam olarak bir kez
   report('level_complete', { level: s.deliveries, score: s.score });
@@ -79,14 +81,15 @@ function injectResultsExtras(best: number | null, top: { score: number; isMe: bo
   box.style.display = lines.length ? 'block' : 'none';
 }
 
-// "Tekrar oyna"yı sarar: (host varsa) geçiş reklamı göster, 'retry' raporla, sonra devam et.
+/**
+ * Wraps "play again": report `retry`, show an interstitial, then continue.
+ * The restart runs in `finally`, so it happens whatever the ad does — and
+ * `showInterstitial` resolves immediately when there's no host bridge, so a
+ * plain browser never waits on it.
+ */
 export function wrapRushRetry(retry: () => void): () => void {
   return () => {
     report('retry', { previousScore: lastScore });
-    if (!isHost()) {
-      retry();
-      return;
-    }
-    void showInterstitial('rush_retry').finally(() => retry());
+    void showInterstitial('rush_retry', 'game_over_retry').finally(() => retry());
   };
 }

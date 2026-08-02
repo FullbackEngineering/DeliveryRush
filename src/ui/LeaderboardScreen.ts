@@ -53,11 +53,15 @@ export class LeaderboardScreen {
       : category === 'rush' ? profile.bestRushCoins : profile.totalDeliveries;
     const scope: LeaderboardScope = category === 'coins' ? 'global' : category === 'rush' ? 'weekly' : 'friends';
     const boardId = category === 'coins' ? 'coins' : category === 'rush' ? 'rush_coins' : 'deliveries';
-    const live = await getKopernikLeaderboard(boardId, profile.name, playerScore);
+    // The player's real SuperApp nickname (synced into the profile on boot);
+    // the offline board labels its own row "You", so override that too.
+    const displayName = profile.name;
+    const live = await getKopernikLeaderboard(boardId, displayName, playerScore);
     const raw = live ?? await Services.leaderboard.getBoard(scope, playerScore);
     if (requestId !== this.requestId) return;
     this.entries = raw.map((entry) => ({
       ...entry,
+      name: entry.isPlayer ? displayName : entry.name,
       score: live !== null ? entry.score
         : category === 'deliveries' ? Math.max(0, Math.round(entry.score / 10000))
           : category === 'rush' ? Math.max(0, Math.round(entry.score / 1000)) : entry.score,
@@ -91,18 +95,20 @@ export class LeaderboardScreen {
   }
 }
 
+// Every row shows the player's REAL nickname; "SEN" is only a marker badge, so
+// the player still sees their own name and their true rank stays visible.
 function renderPodium(entry: LeaderboardEntry, index: number): string {
   const rank = index + 1;
   return `<article class="dr-podium rank-${rank} ${entry.isPlayer ? 'player' : ''}">
     <div class="dr-avatar"><img src="${avatarArtUrl}" alt=""></div><b>${rank}</b>
-    <span>${escapeHtml(entry.isPlayer ? 'SEN' : entry.name)}</span><strong>${formatScore(entry.score)}</strong>
+    <span>${escapeHtml(entry.name)}${entry.isPlayer ? '<i>SEN</i>' : ''}</span><strong>${formatScore(entry.score)}</strong>
   </article>`;
 }
 
 function renderRow(entry: LeaderboardEntry): string {
   return `<div class="dr-leaderboard__row ${entry.isPlayer ? 'player' : ''}">
-    <b>${entry.isPlayer ? 'SEN' : entry.rank}</b><div class="dr-row-avatar"><img src="${avatarArtUrl}" alt=""></div>
-    <span>${escapeHtml(entry.isPlayer ? 'KOPERNİK_SEN' : entry.name)}</span><strong>${formatScore(entry.score)}</strong>
+    <b>${entry.rank}</b><div class="dr-row-avatar"><img src="${avatarArtUrl}" alt=""></div>
+    <span>${escapeHtml(entry.name)}${entry.isPlayer ? '<i>SEN</i>' : ''}</span><strong>${formatScore(entry.score)}</strong>
   </div>`;
 }
 
@@ -155,7 +161,11 @@ function injectStyle(): void {
     .dr-avatar img,.dr-row-avatar img{width:100%;height:100%;object-fit:cover}
     .rank-1 .dr-avatar { width:66px; height:66px; border-color:#ffc733; color:#ffd968; background:#38260d; }
     .rank-3 .dr-avatar { border-color:#f07a38; color:#ffad7d; }.dr-podium > b { margin-top:5px; color:#ffd241; font-size:25px; }
+    .dr-podium.player { border-color:#35e3ff; background:#0b3045; }
     .dr-podium span { width:100%; overflow:hidden; color:#e5eef8; font-size:9px; font-weight:900; text-overflow:ellipsis; white-space:nowrap; }
+    /* "SEN" is a badge next to the real nickname — never a replacement for it. */
+    .dr-leaderboard i { margin-left:5px; padding:1px 4px; border-radius:4px; color:#04212e;
+      background:#35e3ff; font-size:8px; font-style:normal; font-weight:1000; vertical-align:middle; }
     .dr-podium strong { margin-top:4px; color:#ffc938; font-size:10px; }
     .dr-leaderboard__rows { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding-top:6px; }
     .dr-leaderboard__row { display:grid; grid-template-columns:34px 32px 1fr auto; align-items:center; gap:7px;
